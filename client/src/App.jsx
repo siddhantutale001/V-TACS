@@ -41,7 +41,7 @@ export default function App() {
     if (portalType === 'HOSPITAL_PORTAL') {
       setCurrentScreen('HOSPITAL_DASHBOARD');
     } else if (portalType === 'USER_PORTAL') {
-      if (userAuth && userProfile) {
+      if (userAuth) {
         setCurrentScreen('USER_DASHBOARD');
       } else {
         setCurrentScreen('USER_AUTH');
@@ -49,12 +49,11 @@ export default function App() {
     }
   };
 
-  // User auth success handler
+  // User auth success handler (called from ClerkSignedInContent or demo auth)
   const handleAuthSuccess = (authDetails) => {
     setUserAuth(authDetails);
     const saved = localStorage.getItem('vtacs_user_profile');
     if (!saved) {
-      // Force mandatory details modal if first time
       setShowMandatoryOnboarding(true);
     }
     setCurrentScreen('USER_DASHBOARD');
@@ -65,6 +64,12 @@ export default function App() {
     setUserProfile(profileData);
     localStorage.setItem('vtacs_user_profile', JSON.stringify(profileData));
     setShowMandatoryOnboarding(false);
+  };
+
+  // Logout handler
+  const handleLogout = () => {
+    setUserAuth(null);
+    setCurrentScreen('LANDING');
   };
 
   // Delete Account handler
@@ -149,7 +154,7 @@ export default function App() {
             userProfile={userProfile}
             onSaveProfile={handleSaveProfile}
             onDeleteAccount={handleDeleteAccount}
-            onLogout={() => setCurrentScreen('LANDING')}
+            onLogout={handleLogout}
             onParseVoiceTranscript={parseVoiceTranscript}
             onCalculateMatch={handleCalculateMatch}
             matchData={matchData}

@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
-import { ClerkProvider, SignedIn, SignedOut, SignIn, SignUp, UserButton, useUser, useClerk } from '@clerk/clerk-react';
+import React, { useState, useEffect } from 'react';
+import { ClerkProvider, SignedIn, SignedOut, SignIn, SignUp, UserButton, useUser } from '@clerk/clerk-react';
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 export function ClerkWrapper({ children }) {
   if (!PUBLISHABLE_KEY) {
-    // Demo fallback mode when Clerk Publishable Key is not configured
     return <>{children}</>;
   }
 
@@ -16,11 +15,57 @@ export function ClerkWrapper({ children }) {
   );
 }
 
+// Handler component inside SignedIn to automatically sync Clerk user state with App
+function ClerkSignedInContent({ onAuthSuccess, onBackToLanding }) {
+  const { isLoaded, isSignedIn, user } = useUser();
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn && user) {
+      const email = user.primaryEmailAddress?.emailAddress || `${user.username || 'user'}@clerk.user`;
+      const name = user.fullName || user.firstName || user.username || 'Citizen Victim';
+      onAuthSuccess({ id: user.id, email, name });
+    }
+  }, [isLoaded, isSignedIn, user]);
+
+  return (
+    <div style={{ textAlign: 'center', padding: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginBottom: '20px', background: '#F7FAFC', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+        <UserButton />
+        <div style={{ textAlign: 'left' }}>
+          <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#1A202C' }}>
+            Signed in as {user?.fullName || user?.username || 'Authenticated Citizen'}
+          </div>
+          <div style={{ fontSize: '12px', color: '#718096' }}>
+            {user?.primaryEmailAddress?.emailAddress}
+          </div>
+        </div>
+      </div>
+
+      <button 
+        className="portal-btn user-btn" 
+        style={{ width: '100%', padding: '14px', fontSize: '14px', cursor: 'pointer', background: '#E63946', color: '#FFF', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}
+        onClick={() => {
+          if (user) {
+            const email = user.primaryEmailAddress?.emailAddress || `${user.username || 'user'}@clerk.user`;
+            const name = user.fullName || user.firstName || user.username || 'Citizen Victim';
+            onAuthSuccess({ id: user.id, email, name });
+          }
+        }}
+      >
+        🚀 PROCEED TO EMERGENCY TRIAGE DASHBOARD →
+      </button>
+
+      <div style={{ marginTop: '12px' }}>
+        <button className="back-btn" onClick={onBackToLanding}>← Back to Gateway</button>
+      </div>
+    </div>
+  );
+}
+
 export function ClerkAuthPanel({ onAuthSuccess, onBackToLanding }) {
-  const [authMode, setAuthMode] = useState('SIGN_IN'); // SIGN_IN vs SIGN_UP
+  const [authMode, setAuthMode] = useState('SIGN_IN');
 
   if (!PUBLISHABLE_KEY) {
-    // Demo authentication fallback UI
     return (
       <div className="landing-container">
         <div className="landing-card-wrapper" style={{ maxWidth: '480px' }}>
@@ -31,11 +76,6 @@ export function ClerkAuthPanel({ onAuthSuccess, onBackToLanding }) {
             <p style={{ fontSize: '13px', color: '#4A5568' }}>
               Sign in or create your emergency citizen account to access Gemini 2.5 Flash voice triage.
             </p>
-          </div>
-
-          <div style={{ backgroundColor: '#EDF2F7', padding: '12px', borderRadius: '8px', marginBottom: '16px', fontSize: '12px' }}>
-            💡 <strong>Clerk Auth Integration Ready</strong><br/>
-            (Set <code>VITE_CLERK_PUBLISHABLE_KEY</code> in <code>client/.env</code> for live Clerk SSO).
           </div>
 
           <form onSubmit={(e) => {
@@ -85,13 +125,13 @@ export function ClerkAuthPanel({ onAuthSuccess, onBackToLanding }) {
 
   return (
     <div className="landing-container">
-      <div className="landing-card-wrapper" style={{ maxWidth: '480px' }}>
-        <button className="back-btn" onClick={onBackToLanding}>← Back to Gateway</button>
+      <div className="landing-card-wrapper" style={{ maxWidth: '520px' }}>
         <SignedOut>
+          <button className="back-btn" onClick={onBackToLanding}>← Back to Gateway</button>
           {authMode === 'SIGN_IN' ? <SignIn /> : <SignUp />}
         </SignedOut>
         <SignedIn>
-          <UserButton />
+          <ClerkSignedInContent onAuthSuccess={onAuthSuccess} onBackToLanding={onBackToLanding} />
         </SignedIn>
       </div>
     </div>
