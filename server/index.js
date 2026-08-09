@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import { config } from './config/env.js';
 import authRoutes from './routes/auth.js';
 import apiRoutes from './routes/api.js';
+import { auditLogger } from './middleware/logger.js';
 
 const app = express();
 
@@ -21,6 +22,7 @@ const apiLimiter = rateLimit({
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan('combined'));
+app.use(auditLogger);
 app.use('/api/', apiLimiter);
 
 // Routes
