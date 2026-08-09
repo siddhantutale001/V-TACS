@@ -16,7 +16,7 @@ export async function parseVoiceTranscriptWithGemini(transcriptText) {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const systemPrompt = `You are a specialized Snakebite Emergency Triage Dispatch Assistant in India.
 Analyze the following emergency audio transcript spoken by a victim or bystander:

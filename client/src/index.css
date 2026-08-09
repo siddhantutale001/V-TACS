@@ -1,25 +1,633 @@
-/* Windows Classic Utility Design System - V-TACS */
-
+/* Windows Classic Utility Styles - Preserved for Hospital Mode */
 * {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  border-radius: 0px !important;
-  animation: none !important;
-  transition: none !important;
 }
 
 body {
-  background-color: #008080; /* Classic Teal Windows Desktop Backdrop */
-  color: #000000;
-  font-family: 'Tahoma', 'Segoe UI', 'Geneva', sans-serif;
-  font-size: 11px;
-  line-height: 1.2;
-  padding: 6px;
-  user-select: none;
+  margin: 0;
+  padding: 0;
+  background-color: #1A202C;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #2D3748;
 }
 
-/* Master Grid Layout */
+/* ------------------------------------------------------------- */
+/* LANDING PAGE GATEWAY STYLES                                   */
+/* ------------------------------------------------------------- */
+.landing-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+}
+
+.landing-card-wrapper {
+  background: #FFFFFF;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  max-width: 960px;
+  width: 100%;
+  padding: 36px;
+}
+
+.landing-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.landing-logo {
+  font-size: 36px;
+  font-weight: 900;
+  color: #E63946;
+  letter-spacing: 1px;
+}
+
+.landing-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #1E293B;
+  margin-top: 4px;
+}
+
+.landing-subtitle {
+  font-size: 13px;
+  color: #64748B;
+  margin-top: 6px;
+}
+
+.landing-badge {
+  display: inline-block;
+  background: #FEF2F2;
+  color: #DC2626;
+  font-weight: bold;
+  font-size: 11px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid #FCA5A5;
+  margin-top: 10px;
+}
+
+.landing-prompt-title {
+  font-size: 14px;
+  font-weight: bold;
+  color: #475569;
+  text-align: center;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.portal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .portal-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.portal-card {
+  border-radius: 14px;
+  padding: 28px;
+  border: 2px solid #E2E8F0;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.portal-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+}
+
+.user-portal-card {
+  background: #FFF5F5;
+  border-color: #FEB2B2;
+}
+
+.hospital-portal-card {
+  background: #F0F9FF;
+  border-color: #BAE6FD;
+}
+
+.portal-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+
+.portal-card h3 {
+  font-size: 18px;
+  color: #0F172A;
+  margin-bottom: 8px;
+}
+
+.portal-card p {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.portal-auth-note {
+  font-size: 12px;
+  color: #64748B;
+  margin-bottom: 16px;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.portal-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+}
+
+.user-btn {
+  background: #E63946;
+  color: #FFFFFF;
+}
+
+.hospital-btn {
+  background: #0284C7;
+  color: #FFFFFF;
+}
+
+.landing-footer {
+  text-align: center;
+  margin-top: 32px;
+  font-size: 11px;
+  color: #94A3B8;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  color: #64748B;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+/* ------------------------------------------------------------- */
+/* MANDATORY PERSONAL DETAILS MODAL                             */
+/* ------------------------------------------------------------- */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+.modal-card {
+  background: #FFFFFF;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+  max-width: 540px;
+  width: 100%;
+  padding: 28px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 20px;
+  color: #0F172A;
+}
+
+.modal-header p {
+  font-size: 13px;
+  color: #64748B;
+  margin-top: 4px;
+  margin-bottom: 20px;
+}
+
+.modal-form .form-group {
+  margin-bottom: 14px;
+}
+
+.modal-form label {
+  display: block;
+  font-size: 12px;
+  font-weight: bold;
+  color: #334155;
+  margin-bottom: 4px;
+}
+
+.modal-form input,
+.modal-form select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1.5px solid #CBD5E1;
+  font-size: 13px;
+  outline: none;
+}
+
+.modal-form input:focus,
+.modal-form select:focus {
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.save-profile-btn {
+  width: 100%;
+  background: #16A34A;
+  color: #FFFFFF;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 13px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.account-delete-section {
+  margin-top: 24px;
+  border-top: 1px solid #E2E8F0;
+  padding-top: 16px;
+  text-align: center;
+}
+
+.delete-account-trigger {
+  background: none;
+  border: none;
+  color: #DC2626;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.delete-confirm-box {
+  background: #FEF2F2;
+  border: 1px solid #FCA5A5;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 12px;
+  color: #991B1B;
+}
+
+.delete-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  justify-content: center;
+}
+
+.confirm-delete-btn {
+  background: #DC2626;
+  color: #FFFFFF;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.cancel-delete-btn {
+  background: #E2E8F0;
+  color: #334155;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+/* ------------------------------------------------------------- */
+/* MODERN CITIZEN USER DASHBOARD STYLES                          */
+/* ------------------------------------------------------------- */
+.modern-dashboard {
+  background: #F8FAFC;
+  min-height: 100vh;
+}
+
+.modern-header {
+  background: #0F172A;
+  color: #FFFFFF;
+  padding: 14px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.modern-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.modern-logo {
+  font-size: 28px;
+  font-weight: 900;
+  color: #EF4444;
+}
+
+.modern-header h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.modern-subtitle {
+  font-size: 11px;
+  color: #94A3B8;
+}
+
+.modern-user-menu {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-profile-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  background: #1E293B;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid #334155;
+}
+
+.avatar-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #EF4444;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.user-name {
+  font-size: 12px;
+  font-weight: bold;
+  color: #F8FAFC;
+}
+
+.user-contact {
+  font-size: 10px;
+  color: #94A3B8;
+}
+
+.modern-btn {
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.btn-secondary { background: #334155; color: #FFFFFF; }
+.btn-danger { background: #DC2626; color: #FFFFFF; }
+.btn-gps { background: #0284C7; color: #FFFFFF; padding: 4px 10px; font-size: 11px; }
+
+.modern-container {
+  max-width: 1280px;
+  margin: 24px auto;
+  padding: 0 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 900px) {
+  .modern-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+.modern-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.modern-card {
+  background: #FFFFFF;
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  border: 1px solid #E2E8F0;
+}
+
+.hero-voice-card {
+  border-left: 5px solid #EF4444;
+  background: #FEF2F2;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.card-header h2 {
+  margin: 0;
+  font-size: 16px;
+  color: #0F172A;
+}
+
+.badge-pill {
+  font-size: 10px;
+  font-weight: bold;
+  padding: 3px 8px;
+  border-radius: 12px;
+}
+
+.pill-ai { background: #EF4444; color: #FFFFFF; }
+.pill-routing { background: #0284C7; color: #FFFFFF; }
+
+.card-desc {
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.4;
+  margin-bottom: 14px;
+}
+
+.modern-form .form-group {
+  margin-bottom: 12px;
+}
+
+.modern-form label {
+  display: block;
+  font-size: 11px;
+  font-weight: bold;
+  color: #475569;
+  margin-bottom: 4px;
+}
+
+.modern-form input,
+.modern-form textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #CBD5E1;
+  font-size: 12px;
+}
+
+.btn-primary-lg {
+  width: 100%;
+  background: #2563EB;
+  color: #FFFFFF;
+  padding: 12px;
+  font-size: 13px;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+.btn-danger-lg {
+  width: 100%;
+  background: #DC2626;
+  color: #FFFFFF;
+  padding: 14px;
+  font-size: 14px;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+.geo-status-banner {
+  background: #E0F2FE;
+  color: #0369A1;
+  font-weight: bold;
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.emergency-kin-card {
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+}
+
+.kin-title {
+  font-weight: bold;
+  color: #1E40AF;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.kin-details {
+  font-size: 13px;
+  color: #1E3A8A;
+}
+
+.kin-blood {
+  font-size: 11px;
+  color: #3B82F6;
+  margin-top: 4px;
+}
+
+.hospital-highlight-box {
+  background: #F0FDF4;
+  border: 1.5px solid #86EFAC;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.hospital-highlight-box h3 {
+  margin: 0;
+  color: #166534;
+  font-size: 16px;
+}
+
+.hospital-highlight-box p {
+  margin: 4px 0 12px 0;
+  font-size: 12px;
+  color: #15803D;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.stat-box {
+  background: #FFFFFF;
+  border: 1px solid #BBF7D0;
+  border-radius: 6px;
+  padding: 8px;
+  text-align: center;
+}
+
+.stat-val {
+  font-weight: 800;
+  font-size: 14px;
+  color: #15803D;
+}
+
+.stat-lbl {
+  font-size: 10px;
+  color: #166534;
+}
+
+.ambulance-highlight-box {
+  background: #FEF3C7;
+  border: 1px solid #FDE68A;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.empty-match-card {
+  text-align: center;
+  padding: 40px 20px;
+  color: #64748B;
+}
+
+.safety-note {
+  font-size: 11px;
+  color: #991B1B;
+  background: #FEF2F2;
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-top: 8px;
+}
+
+/* ------------------------------------------------------------- */
+/* BARE BONES RETRO WINDOWS STYLES FOR HOSPITAL DASHBOARD        */
+/* ------------------------------------------------------------- */
 .app-container {
   background-color: #C0C0C0;
   border: 2px outset #FFFFFF;
@@ -29,7 +637,6 @@ body {
   padding: 4px;
 }
 
-/* Header Bar */
 .win-header {
   background: #000080;
   color: #FFFFFF;
@@ -54,10 +661,8 @@ body {
   font-size: 10px;
   padding: 1px 4px;
   border: 1px outset #FFFFFF;
-  font-weight: normal;
 }
 
-/* Status Bar */
 .win-statusbar {
   background: #C0C0C0;
   border: 1px inset #808080;
@@ -69,7 +674,6 @@ body {
   font-size: 11px;
 }
 
-/* Grid Layout Panes */
 .dashboard-grid {
   display: grid;
   grid-template-columns: 360px 1fr 340px;
@@ -82,7 +686,6 @@ body {
   }
 }
 
-/* Panel Window Box */
 .win-panel {
   background-color: #C0C0C0;
   border: 2px outset #FFFFFF;
@@ -98,92 +701,12 @@ body {
   padding: 2px 5px;
   margin-bottom: 4px;
   font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .win-panel-body {
   padding: 2px;
 }
 
-/* Forms & Controls */
-label {
-  display: block;
-  font-weight: bold;
-  margin-top: 4px;
-  margin-bottom: 2px;
-  color: #000000;
-}
-
-input[type="text"],
-input[type="number"],
-select,
-textarea {
-  width: 100%;
-  background-color: #FFFFFF;
-  color: #000000;
-  border: 2px inset #808080;
-  padding: 3px 4px;
-  font-family: monospace;
-  font-size: 11px;
-  outline: none;
-}
-
-input[type="text"]:focus,
-input[type="number"]:focus,
-select:focus,
-textarea:focus {
-  background-color: #FFFFE0;
-}
-
-.checkbox-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 6px 0;
-  font-weight: bold;
-}
-
-/* Windows Classic Buttons */
-button, .win-btn {
-  background-color: #C0C0C0;
-  color: #000000;
-  border: 2px outset #FFFFFF;
-  padding: 4px 8px;
-  font-family: 'Tahoma', sans-serif;
-  font-size: 11px;
-  font-weight: bold;
-  cursor: pointer;
-  text-align: center;
-}
-
-button:active, .win-btn:active {
-  border: 2px inset #808080;
-  padding: 5px 7px 3px 9px;
-}
-
-button.primary {
-  background-color: #000080;
-  color: #FFFFFF;
-}
-
-button.danger {
-  background-color: #800000;
-  color: #FFFFFF;
-}
-
-button.success {
-  background-color: #008000;
-  color: #FFFFFF;
-}
-
-button:disabled {
-  color: #808080;
-  border: 2px outset #E0E0E0;
-  cursor: not-allowed;
-}
-
-/* Utility Tables */
 table.win-table {
   width: 100%;
   border-collapse: collapse;
@@ -198,7 +721,6 @@ table.win-table th {
   border: 1px outset #FFFFFF;
   padding: 3px 4px;
   text-align: left;
-  font-weight: bold;
 }
 
 table.win-table td {
@@ -207,16 +729,11 @@ table.win-table td {
   font-family: monospace;
 }
 
-table.win-table tr:nth-child(even) {
-  background-color: #F8F8F8;
-}
-
 table.win-table tr.selected {
   background-color: #000080;
   color: #FFFFFF;
 }
 
-/* Badges & Indicators */
 .badge {
   display: inline-block;
   padding: 1px 4px;
@@ -231,7 +748,6 @@ table.win-table tr.selected {
 .badge-amber { background-color: #808000; color: #FFFFFF; }
 .badge-blue { background-color: #000080; color: #FFFFFF; }
 
-/* Voice Module Retro Indicator */
 .voice-box {
   background-color: #000000;
   color: #00FF00;
