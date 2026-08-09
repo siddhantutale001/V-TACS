@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import LandingPage from './components/LandingPage';
 import { ClerkAuthPanel, ClerkWrapper } from './components/auth/ClerkUserAuth';
 import PersonalDetailsModal from './components/auth/PersonalDetailsModal';
+import HospitalLoginModal from './components/auth/HospitalLoginModal';
 import ModernUserDashboard from './components/user/ModernUserDashboard';
 import HospitalDashboard from './components/hospital/HospitalDashboard';
 import { 
@@ -11,11 +12,12 @@ import {
 } from './services/api';
 
 export default function App() {
-  // Screens: LANDING, USER_AUTH, USER_DASHBOARD, HOSPITAL_DASHBOARD
+  // Screens: LANDING, USER_AUTH, USER_DASHBOARD, HOSPITAL_LOGIN, HOSPITAL_DASHBOARD
   const [currentScreen, setCurrentScreen] = useState('LANDING');
   
   const [userAuth, setUserAuth] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const [officerUser, setOfficerUser] = useState(null);
   const [showMandatoryOnboarding, setShowMandatoryOnboarding] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
@@ -39,7 +41,11 @@ export default function App() {
   // Handle portal selection from Landing Page
   const handleSelectPortal = (portalType) => {
     if (portalType === 'HOSPITAL_PORTAL') {
-      setCurrentScreen('HOSPITAL_DASHBOARD');
+      if (officerUser) {
+        setCurrentScreen('HOSPITAL_DASHBOARD');
+      } else {
+        setCurrentScreen('HOSPITAL_LOGIN');
+      }
     } else if (portalType === 'USER_PORTAL') {
       if (userAuth) {
         setCurrentScreen('USER_DASHBOARD');
@@ -49,7 +55,13 @@ export default function App() {
     }
   };
 
-  // User auth success handler (called from ClerkSignedInContent or demo auth)
+  // Hospital Officer Login Success Handler
+  const handleOfficerLoginSuccess = (user, token) => {
+    setOfficerUser(user);
+    setCurrentScreen('HOSPITAL_DASHBOARD');
+  };
+
+  // User auth success handler
   const handleAuthSuccess = (authDetails) => {
     setUserAuth(authDetails);
     const saved = localStorage.getItem('vtacs_user_profile');
@@ -66,9 +78,15 @@ export default function App() {
     setShowMandatoryOnboarding(false);
   };
 
-  // Logout handler
-  const handleLogout = () => {
+  // User logout handler
+  const handleUserLogout = () => {
     setUserAuth(null);
+    setCurrentScreen('LANDING');
+  };
+
+  // Officer logout handler
+  const handleOfficerLogout = () => {
+    setOfficerUser(null);
     setCurrentScreen('LANDING');
   };
 
@@ -97,7 +115,6 @@ export default function App() {
       }
     } catch (err) {
       console.error('Match calculation error:', err);
-      alert('Failed to calculate triage routing matrix.');
     } finally {
       setIsLoading(false);
     }
@@ -146,7 +163,15 @@ export default function App() {
         />
       )}
 
-      {/* 3. Modern Public Citizen Emergency Dashboard */}
+      {/* 3. Hospital Medical Officer Authentication Gateway */}
+      {currentScreen === 'HOSPITAL_LOGIN' && (
+        <HospitalLoginModal 
+          onLoginSuccess={handleOfficerLoginSuccess}
+          onBackToLanding={() => setCurrentScreen('LANDING')}
+        />
+      )}
+
+      {/* 4. Modern Public Citizen Emergency Dashboard */}
       {currentScreen === 'USER_DASHBOARD' && (
         <>
           <ModernUserDashboard 
@@ -154,7 +179,7 @@ export default function App() {
             userProfile={userProfile}
             onSaveProfile={handleSaveProfile}
             onDeleteAccount={handleDeleteAccount}
-            onLogout={handleLogout}
+            onLogout={handleUserLogout}
             onParseVoiceTranscript={parseVoiceTranscript}
             onCalculateMatch={handleCalculateMatch}
             matchData={matchData}
@@ -177,10 +202,11 @@ export default function App() {
         </>
       )}
 
-      {/* 4. Preserved Hospital Administrative Utility Dashboard */}
+      {/* 5. Hospital Resource Operations & ASV Audit Center */}
       {currentScreen === 'HOSPITAL_DASHBOARD' && (
         <HospitalDashboard 
-          user={{ name: 'Dr. Rajesh Patil (Sassoon Apex)' }}
+          officerUser={officerUser}
+          onLogout={handleOfficerLogout}
           onBackToLanding={() => setCurrentScreen('LANDING')}
         />
       )}

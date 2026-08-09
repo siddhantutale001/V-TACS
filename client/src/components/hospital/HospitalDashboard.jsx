@@ -1,199 +1,307 @@
 import React, { useState, useEffect } from 'react';
 import Header from '../Header';
-import VoiceTriagePanel from '../VoiceTriagePanel';
-import TriageForm from '../TriageForm';
-import HospitalList from '../HospitalList';
-import DispatchControl from '../DispatchControl';
-import ActiveCasesGrid from '../ActiveCasesGrid';
-import { 
-  fetchHospitals, 
-  calculateTriageMatch, 
-  parseVoiceTranscript, 
-  executeDispatch, 
-  fetchActiveCases 
-} from '../../services/api';
+import { fetchHospitals, fetchActiveCases, updateAsvStock } from '../../services/api';
 
-export default function HospitalDashboard({ user, onBackToLanding }) {
-  const [formData, setFormData] = useState({
-    victim_lat: '18.7617',
-    victim_lon: '73.8587',
-    location_description: 'Chakan Market Yard (Rural North)',
-    symptoms: 'Snakebite on leg, local swelling and breathing discomfort',
-    asv_vials_needed: 10,
-    requires_ventilator: false
-  });
-
-  const [matchData, setMatchData] = useState(null);
-  const [selectedHospital, setSelectedHospital] = useState(null);
-  const [activeCases, setActiveCases] = useState([]);
+export default function HospitalDashboard({ officerUser, onLogout, onBackToLanding }) {
   const [hospitals, setHospitals] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isDispatching, setIsDispatching] = useState(false);
-  const [notification, setNotification] = useState(null);
+  const [activeCases, setActiveCases] = useState([]);
+  const [selectedHospital, setSelectedHospital] = useState(null);
+  
+  // Stock audit form state
+  const [editAsvCount, setEditAsvCount] = useState(0);
+  const [editVentilator, setEditVentilator] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [auditMessage, setAuditMessage] = useState('');
 
   useEffect(() => {
-    loadInitialData();
+    loadData();
   }, []);
 
-  const loadInitialData = async () => {
+  const loadData = async () => {
     try {
       const [hospRes, caseRes] = await Promise.all([
         fetchHospitals().catch(() => null),
         fetchActiveCases().catch(() => null)
       ]);
-      if (hospRes && hospRes.data) setHospitals(hospRes.data);
-      if (caseRes && caseRes.data) setActiveCases(caseRes.data);
-    } catch (err) {
-      console.warn('Initial data load error:', err);
-    }
-  };
 
-  const handleCalculateMatch = async () => {
-    setIsLoading(true);
-    try {
-      const res = await calculateTriageMatch(formData);
-      if (res && res.success && res.data) {
-        setMatchData(res.data);
-        setSelectedHospital(res.data.matched_hospital);
-        showNotification('SUCCESS', `Match calculated via ${res.data.matched_hospital.engine}`);
+      if (hospRes && hospRes.data) {
+        setHospitals(hospRes.data);
+        if (hospRes.data.length > 0) {
+          const myHospital = hospRes.data[0]; // Default to Sassoon General Hospital
+          setSelectedHospital(myHospital);
+          setEditAsvCount(myHospital.current_asv_vials);
+          setEditVentilator(Boolean(myHospital.ventilator_available));
+        }
+      }
+
+      if (caseRes && caseRes.data) {
+        setActiveCases(caseRes.data);
       }
     } catch (err) {
-      console.error('Calculate match error:', err);
-      showNotification('ERROR', 'Failed to calculate triage routing matrix');
-    } finally {
-      setIsLoading(false);
+      console.warn('Data load warning:', err);
     }
   };
 
-  const handleApplyVoiceData = (parsedData) => {
-    if (!parsedData) return;
-    setFormData(prev => ({
-      ...prev,
-      victim_lat: parsedData.estimated_lat ? String(parsedData.estimated_lat) : prev.victim_lat,
-      victim_lon: parsedData.estimated_lon ? String(parsedData.estimated_lon) : prev.victim_lon,
-      location_description: parsedData.location_description || prev.location_description,
-      symptoms: Array.isArray(parsedData.symptoms) ? parsedData.symptoms.join(', ') : (parsedData.symptoms || prev.symptoms),
-      asv_vials_needed: parsedData.asv_vials_needed || prev.asv_vials_needed,
-      requires_ventilator: Boolean(parsedData.requires_ventilator)
-    }));
-    showNotification('SUCCESS', 'Voice triage parsed via Gemini 2.5 Flash!');
+  const handleSelectHospitalForEdit = (h) => {
+    setSelectedHospital(h);
+    setEditAsvCount(h.current_asv_vials);
+    setEditVentilator(Boolean(h.ventilator_available));
+    setAuditMessage('');
   };
 
-  const handleExecuteDispatch = async () => {
-    if (!selectedHospital || !matchData) return;
-    setIsDispatching(true);
+  const handleUpdateStock = async (e) => {
+    e.preventDefault();
+    if (!selectedHospital) return;
+    setIsUpdating(true);
+    setAuditMessage('');
+
     try {
-      const payload = {
-        victim_lat: parseFloat(formData.victim_lat),
-        victim_lon: parseFloat(formData.victim_lon),
-        location_description: formData.location_description,
-        symptoms: formData.symptoms,
-        hospital_id: selectedHospital.id,
-        ambulance_id: matchData.matched_ambulance ? matchData.matched_ambulance.id : null,
-        estimated_eta: matchData.total_estimated_eta_minutes || selectedHospital.eta_minutes,
-        asv_vials_reserved: formData.asv_vials_needed
-      };
-
-      const res = await executeDispatch(payload);
-      if (res && res.success) {
-        showNotification('SUCCESS', `🚨 DISPATCH CONFIRMED: Reserved ${res.asv_vials_reserved} ASV vials at ${res.hospital_name}`);
-        loadInitialData();
-      }
+      await updateAsvStock(selectedHospital.id, editAsvCount, editVentilator, 'demo-token');
+      setAuditMessage(`✓ ASV stock updated to ${editAsvCount} vials for ${selectedHospital.name}`);
+      loadData();
     } catch (err) {
-      console.error('Dispatch execution error:', err);
-      showNotification('ERROR', err.response?.data?.message || 'Failed to execute dispatch transaction');
+      console.error('Failed to update ASV stock:', err);
+      setAuditMessage('⚠️ Failed to update stock');
     } finally {
-      setIsDispatching(false);
+      setIsUpdating(false);
     }
-  };
-
-  const showNotification = (type, message) => {
-    setNotification({ type, message });
-    setTimeout(() => setNotification(null), 5000);
   };
 
   return (
     <div className="app-container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px', background: '#000080', padding: '2px 4px', color: '#FFF' }}>
-        <button style={{ fontSize: '10px', padding: '1px 5px' }} onClick={onBackToLanding}>
-          ← RETURN TO PORTAL GATEWAY
-        </button>
-        <span style={{ fontFamily: 'monospace', fontSize: '11px' }}>HOSPITAL ADMINISTRATIVE UTILITY DASHBOARD</span>
+      
+      {/* Utility Top Bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', background: '#000080', padding: '3px 6px', color: '#FFF' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button style={{ fontSize: '10px', padding: '2px 6px', fontWeight: 'bold' }} onClick={onBackToLanding}>
+            ← PORTAL GATEWAY
+          </button>
+          <span style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: 'bold' }}>
+            HOSPITAL RESOURCE OPERATIONS & ASV AUDIT CENTER [NAPSE PROTOCOL]
+          </span>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#FFFF00' }}>
+            LOGGED IN: {officerUser?.name || 'Dr. Rajesh Patil (Medical Officer)'}
+          </span>
+          <button className="danger" style={{ fontSize: '10px', padding: '2px 6px' }} onClick={onLogout}>
+            LOGOUT
+          </button>
+        </div>
       </div>
 
-      <Header user={user} onOpenLogin={() => {}} />
+      <Header user={officerUser} onOpenLogin={() => {}} />
 
-      {notification && (
-        <div style={{
-          backgroundColor: notification.type === 'SUCCESS' ? '#008000' : '#800000',
-          color: '#FFFFFF',
-          padding: '4px 8px',
-          fontWeight: 'bold',
-          marginBottom: '4px',
-          fontFamily: 'monospace',
-          border: '1px outset #FFFFFF'
-        }}>
-          [{notification.type}] {notification.message}
-        </div>
-      )}
-
-      {/* Classic Single-Page Windows Utility Grid */}
-      <div className="dashboard-grid">
+      {/* Main Hospital Operational Grid */}
+      <div className="dashboard-grid" style={{ gridTemplateColumns: '380px 1fr 340px' }}>
+        
+        {/* Left Column: Interactive ASV Stock Audit & Bed Capacity Update Form */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <VoiceTriagePanel 
-            onApplyParsedData={handleApplyVoiceData}
-            onParseVoiceTranscript={parseVoiceTranscript}
-          />
-          <TriageForm 
-            formData={formData} 
-            setFormData={setFormData} 
-            onCalculateMatch={handleCalculateMatch}
-            isLoading={isLoading}
-          />
-        </div>
+          
+          <div className="win-panel">
+            <div className="win-panel-title" style={{ background: '#000080', color: '#FFF' }}>
+              💉 LIVE ASV INVENTORY AUDIT & STOCK CONTROL
+            </div>
+            <div className="win-panel-body">
+              {selectedHospital ? (
+                <form onSubmit={handleUpdateStock} style={{ background: '#FFF', border: '2px inset #808080', padding: '6px' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '12px', marginBottom: '4px', color: '#000080' }}>
+                    SELECTED FACILITY:
+                  </div>
+                  <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '2px' }}>
+                    {selectedHospital.name}
+                  </div>
+                  <div style={{ fontSize: '9px', color: '#666', marginBottom: '8px' }}>
+                    {selectedHospital.address}
+                  </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <HospitalList 
-            hospitals={matchData ? matchData.candidate_hospitals : hospitals}
-            selectedHospital={selectedHospital}
-            onSelectHospital={setSelectedHospital}
-          />
-          <ActiveCasesGrid 
-            activeCases={activeCases} 
-            onRefresh={loadInitialData}
-          />
-        </div>
+                  <div style={{ marginBottom: '8px' }}>
+                    <label style={{ display: 'block', fontWeight: 'bold', fontSize: '11px' }}>Current ASV Vials in Stock:</label>
+                    <input 
+                      type="number" 
+                      value={editAsvCount} 
+                      onChange={e => setEditAsvCount(parseInt(e.target.value, 10) || 0)} 
+                      min="0" 
+                      max="500" 
+                      style={{ width: '100%', padding: '4px', border: '2px inset #808080', fontFamily: 'monospace', fontSize: '12px', fontWeight: 'bold' }}
+                      required 
+                    />
+                  </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <DispatchControl 
-            matchData={matchData}
-            selectedHospital={selectedHospital}
-            onExecuteDispatch={handleExecuteDispatch}
-            isDispatching={isDispatching}
-          />
+                  <div style={{ marginBottom: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={editVentilator} 
+                        onChange={e => setEditVentilator(e.target.checked)} 
+                      />
+                      ICU VENTILATOR READY & OPERATIONAL
+                    </label>
+                  </div>
+
+                  {auditMessage && (
+                    <div style={{ background: auditMessage.includes('✓') ? '#E6FFFA' : '#FFF5F5', color: auditMessage.includes('✓') ? '#234E52' : '#9B2C2C', padding: '4px', fontSize: '10px', fontFamily: 'monospace', marginBottom: '6px', border: '1px solid #808080' }}>
+                      {auditMessage}
+                    </div>
+                  )}
+
+                  <button 
+                    type="submit" 
+                    className="primary" 
+                    style={{ width: '100%', padding: '6px', fontSize: '11px', letterSpacing: '0.5px' }}
+                    disabled={isUpdating}
+                  >
+                    {isUpdating ? 'SAVING AUDIT RECORD...' : '💾 SAVE & SYNC ASV STOCK TO AIVEN CLOUD'}
+                  </button>
+                </form>
+              ) : (
+                <div style={{ padding: '10px', fontSize: '11px' }}>Select a hospital from table to audit stock.</div>
+              )}
+            </div>
+          </div>
 
           <div className="win-panel">
-            <div className="win-panel-title">📦 REGIONAL ASV AUDIT MONITOR</div>
-            <div className="win-panel-body" style={{ fontSize: '10px' }}>
-              <div style={{ marginBottom: '4px' }}>
-                <strong>TOTAL REGIONAL STOCK:</strong> {hospitals.reduce((acc, h) => acc + (h.current_asv_vials || 0), 0)} VIALS
+            <div className="win-panel-title">🛏️ ICU & TRAUMA BED CAPACITY MONITOR</div>
+            <div className="win-panel-body" style={{ fontSize: '10px', fontFamily: 'monospace' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span>TRAUMA ICU BEDS:</span>
+                <span className="badge badge-green">14 / 20 AVAILABLE</span>
               </div>
-              <div style={{ marginBottom: '4px' }}>
-                <strong>ICU VENTILATORS READY:</strong> {hospitals.filter(h => h.ventilator_available).length} HOSPITALS
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span>ICU VENTILATORS:</span>
+                <span className="badge badge-green">6 OPERATIONAL</span>
               </div>
-              <div style={{ fontSize: '9px', color: '#808080', borderTop: '1px solid #808080', paddingTop: '3px' }}>
-                NAPSE Protocol: Minimum 10 ASV vials reserved per envenoming dispatch. Stock audited via MySQL Aiven cloud sync.
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span>ASV RE-ORDER THRESHOLD:</span>
+                <span className="badge badge-amber">&lt; 15 VIALS</span>
+              </div>
+              <div style={{ fontSize: '9px', color: '#666', borderTop: '1px solid #808080', paddingTop: '4px', marginTop: '4px' }}>
+                Automated NAPSE alert triggered when regional stock drops below 20 vials per district.
               </div>
             </div>
           </div>
+
         </div>
+
+        {/* Center Column: Incoming Victim Dispatch Tracker */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div className="win-panel" style={{ flex: 1 }}>
+            <div className="win-panel-title" style={{ display: 'flex', justifyContent: 'space-between', background: '#800000', color: '#FFF' }}>
+              <span>🚨 INCOMING VICTIM DISPATCH & PATIENT TRACKER</span>
+              <button style={{ fontSize: '9px', padding: '0px 4px' }} onClick={loadData}>REFRESH FEED</button>
+            </div>
+            <div className="win-panel-body" style={{ overflowX: 'auto' }}>
+              {activeCases.length === 0 ? (
+                <div style={{ padding: '20px', textAlign: 'center', fontFamily: 'monospace', color: '#808080' }}>
+                  No incoming envenoming dispatches currently active for this facility.
+                </div>
+              ) : (
+                <table className="win-table">
+                  <thead>
+                    <tr>
+                      <th>CASE #</th>
+                      <th>DISPATCH TIME</th>
+                      <th>VICTIM LOCATION</th>
+                      <th>SYMPTOMS / SEVERITY</th>
+                      <th>ASV RESERVED</th>
+                      <th>AMBULANCE & DRIVER</th>
+                      <th>ETA</th>
+                      <th>STATUS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activeCases.map((c) => (
+                      <tr key={c.id}>
+                        <td><strong>#{c.id}</strong></td>
+                        <td>{new Date(c.created_at || c.bite_time).toLocaleTimeString()}</td>
+                        <td>
+                          <strong>{c.location_description || `${c.victim_lat}, ${c.victim_lon}`}</strong>
+                        </td>
+                        <td>
+                          <span style={{ fontSize: '10px' }}>{c.symptoms}</span>
+                        </td>
+                        <td>
+                          <span className="badge badge-amber">{c.asv_vials_reserved || 10} VIALS</span>
+                        </td>
+                        <td>
+                          <strong>{c.assigned_ambulance_number || 'MH-12-EM-1081'}</strong>
+                        </td>
+                        <td>
+                          <span className="badge badge-red">{c.estimated_eta || 20} MIN</span>
+                        </td>
+                        <td>
+                          <span className="badge badge-green">INCOMING</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Regional ASV Audit Monitor (Nearby Facilities) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div className="win-panel" style={{ flex: 1 }}>
+            <div className="win-panel-title">🌐 REGIONAL ASV AUDIT & NEARBY HOSPITALS</div>
+            <div className="win-panel-body" style={{ overflowX: 'auto' }}>
+              <table className="win-table">
+                <thead>
+                  <tr>
+                    <th>HOSPITAL</th>
+                    <th>ASV VIALS</th>
+                    <th>VENTILATOR</th>
+                    <th>AUDIT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {hospitals.map((h) => {
+                    const isSelected = selectedHospital && selectedHospital.id === h.id;
+                    return (
+                      <tr key={h.id} className={isSelected ? 'selected' : ''}>
+                        <td>
+                          <strong>{h.name}</strong>
+                          <div style={{ fontSize: '8px', opacity: 0.8 }}>{h.phone}</div>
+                        </td>
+                        <td>
+                          <span className={`badge ${h.current_asv_vials > 15 ? 'badge-green' : (h.current_asv_vials > 0 ? 'badge-amber' : 'badge-red')}`}>
+                            {h.current_asv_vials} VIALS
+                          </span>
+                        </td>
+                        <td>
+                          {h.ventilator_available ? (
+                            <span className="badge badge-green">READY</span>
+                          ) : (
+                            <span className="badge badge-red">NONE</span>
+                          )}
+                        </td>
+                        <td>
+                          <button 
+                            style={{ fontSize: '9px', padding: '1px 4px' }} 
+                            onClick={() => handleSelectHospitalForEdit(h)}
+                          >
+                            SELECT
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
       </div>
 
+      {/* Status Bar */}
       <div className="win-statusbar">
-        <span>V-TACS STATUS: ONLINE</span>
-        <span>OSRM API: READY (HAVERSINE FALLBACK: ACTIVE)</span>
-        <span>GEMINI 2.5 FLASH: ACTIVE</span>
+        <span>V-TACS HOSPITAL OPERATIONS: LIVE</span>
+        <span>AIVEN CLOUD MYSQL SYNC: ACTIVE</span>
+        <span>NAPSE HELPLINE: 15400 ACTIVE</span>
       </div>
+
     </div>
   );
 }
