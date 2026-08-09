@@ -3,12 +3,17 @@ import { useVoiceTriage } from '../hooks/useVoiceTriage';
 
 export default function VoiceTriagePanel({ onApplyParsedData, onParseVoiceTranscript }) {
   const [isParsing, setIsParsing] = useState(false);
+  const [manualText, setManualText] = useState('');
 
-  const handleParseText = async (text) => {
-    if (!text || !text.trim()) return;
+  const handleParseText = async (textToParse) => {
+    const targetText = textToParse || manualText || transcript;
+    if (!targetText || !targetText.trim()) {
+      alert('Please enter or speak emergency symptoms first.');
+      return;
+    }
     setIsParsing(true);
     try {
-      const parsedResult = await onParseVoiceTranscript(text);
+      const parsedResult = await onParseVoiceTranscript(targetText);
       if (parsedResult && parsedResult.data) {
         onApplyParsedData(parsedResult.data);
       }
@@ -27,90 +32,134 @@ export default function VoiceTriagePanel({ onApplyParsedData, onParseVoiceTransc
     errorMessage,
     startListening,
     stopListeningAndParse
-  } = useVoiceTriage(handleParseText);
+  } = useVoiceTriage((parsedText) => handleParseText(parsedText));
 
   const applyPreset = (presetText) => {
+    setManualText(presetText);
     setTranscript(presetText);
     handleParseText(presetText);
   };
 
   return (
-    <div className="win-panel" style={{ border: '2px inset #808080', padding: '6px', background: '#F8FAFC' }}>
-      <div style={{ background: '#E63946', color: '#FFFFFF', padding: '4px 8px', fontWeight: 'bold', fontSize: '11px', display: 'flex', justifyContent: 'space-between' }}>
-        <span>🎤 CONVERSATIONAL VOICE TRIAGE (GEMINI 2.5 FLASH)</span>
-        <span>AI PARSER</span>
+    <div style={{ background: '#FFFFFF', border: '2px solid #E2E8F0', borderRadius: '12px', padding: '16px' }}>
+      
+      {/* Panel Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+        <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#0F172A' }}>
+          🎤 Conversational Voice Triage
+        </div>
+        <span className="badge-pill pill-ai">GEMINI 2.5 FLASH ENGINE</span>
       </div>
 
-      <div style={{ padding: '4px' }}>
-        <div style={{ display: 'flex', gap: '4px', margin: '6px 0' }}>
-          {!isListening ? (
-            <button className="primary" onClick={startListening} style={{ flex: 1, padding: '6px', fontSize: '11px' }}>
-              ▶ START MIC LISTENING
-            </button>
-          ) : (
-            <button className="danger" onClick={stopListeningAndParse} style={{ flex: 1, padding: '6px', fontSize: '11px' }}>
-              ⏹ STOP & PARSE WITH GEMINI 2.5
-            </button>
-          )}
+      {/* Mic Button Row */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+        {!isListening ? (
           <button 
-            className="success"
-            onClick={() => handleParseText(transcript)} 
-            disabled={!transcript.trim() || isParsing}
-            style={{ width: '130px', padding: '6px', fontSize: '11px' }}
+            type="button"
+            className="modern-btn"
+            onClick={startListening} 
+            style={{ flex: 1, background: '#EF4444', color: '#FFF', padding: '10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', borderRadius: '8px' }}
           >
-            {isParsing ? 'PARSING...' : '⚡ PARSE WITH AI'}
+            ▶ START MIC LISTENING
           </button>
-        </div>
-
-        {/* Real-time editable transcript box */}
-        <div className="voice-box" style={{ background: '#000', color: '#00FF00', padding: '6px', fontFamily: 'monospace', fontSize: '11px', minHeight: '55px', borderRadius: '4px' }}>
-          <div style={{ color: '#808080', fontSize: '9px', marginBottom: '2px' }}>
-            TRANSCRIPT INPUT BOX (EDITABLE / DEVICE DICTATION):
-          </div>
-          <textarea 
-            value={transcript}
-            onChange={(e) => setTranscript(e.target.value)}
-            placeholder="Click mic to speak, or type/dictate envenoming symptoms here..."
-            style={{ width: '100%', background: 'transparent', color: '#00FF00', border: 'none', outline: 'none', fontFamily: 'monospace', fontSize: '11px', resize: 'none', height: '35px' }}
-          />
-        </div>
-
-        {errorMessage && (
-          <div style={{ backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FEB2B2', padding: '4px 6px', fontSize: '10px', marginTop: '4px', borderRadius: '4px', fontWeight: 'bold' }}>
-            ℹ️ {errorMessage}
-          </div>
+        ) : (
+          <button 
+            type="button"
+            className="modern-btn"
+            onClick={stopListeningAndParse} 
+            style={{ flex: 1, background: '#DC2626', color: '#FFF', padding: '10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', borderRadius: '8px' }}
+          >
+            ⏹ STOP & PARSE VOICE
+          </button>
         )}
-
-        <div style={{ fontSize: '10px', fontWeight: 'bold', marginTop: '6px', marginBottom: '4px', color: '#2D3748' }}>
-          🔊 DEMO EMERGENCY VOICE PRESETS (1-CLICK GEMINI 2.5 PARSE):
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-          <button 
-            type="button"
-            style={{ textAlign: 'left', padding: '4px 8px', fontSize: '10px', background: '#EDF2F7', border: '1px solid #CBD5E0', cursor: 'pointer', borderRadius: '4px' }}
-            onClick={() => applyPreset("Cobra bite at Chakan market yard 30 minutes ago, severe swelling and difficulty breathing")}
-          >
-            🔊 Preset 1: Chakan Market - Cobra bite, respiratory failure (Severe)
-          </button>
-
-          <button 
-            type="button"
-            style={{ textAlign: 'left', padding: '4px 8px', fontSize: '10px', background: '#EDF2F7', border: '1px solid #CBD5E0', cursor: 'pointer', borderRadius: '4px' }}
-            onClick={() => applyPreset("Victim bitten on leg near Shirur highway 45 mins ago, drooping eyelids and slurred speech")}
-          >
-            🔊 Preset 2: Shirur Highway - Neurotoxic ptosis & slurred speech
-          </button>
-
-          <button 
-            type="button"
-            style={{ textAlign: 'left', padding: '4px 8px', fontSize: '10px', background: '#EDF2F7', border: '1px solid #CBD5E0', cursor: 'pointer', borderRadius: '4px' }}
-            onClick={() => applyPreset("Snakebite near Pimpri YCM hospital 15 mins ago, active bleeding from wound site")}
-          >
-            🔊 Preset 3: Pimpri - Hemotoxic active bleeding
-          </button>
-        </div>
       </div>
+
+      {/* Clear Visible Voice Input Text Box */}
+      <div style={{ marginBottom: '14px' }}>
+        <label style={{ display: 'block', fontWeight: 'bold', fontSize: '12px', color: '#334155', marginBottom: '6px' }}>
+          💬 Emergency Voice Text Box (Type or Dictate Here):
+        </label>
+        
+        <textarea 
+          value={manualText || transcript}
+          onChange={(e) => {
+            setManualText(e.target.value);
+            setTranscript(e.target.value);
+          }}
+          rows="3"
+          placeholder="Type or dictate emergency voice symptoms here (e.g. Cobra bite near Chakan market, swelling on leg and difficulty breathing)..."
+          style={{ 
+            width: '100%', 
+            padding: '10px', 
+            borderRadius: '8px', 
+            border: '2px solid #3B82F6', 
+            fontSize: '13px', 
+            fontFamily: 'sans-serif',
+            backgroundColor: '#F0F9FF',
+            color: '#1E293B',
+            outline: 'none',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+          }}
+        />
+
+        <button 
+          type="button"
+          className="modern-btn"
+          onClick={() => handleParseText(manualText || transcript)} 
+          disabled={isParsing}
+          style={{ 
+            width: '100%', 
+            marginTop: '8px', 
+            background: '#16A34A', 
+            color: '#FFFFFF', 
+            padding: '10px', 
+            fontSize: '12px', 
+            fontWeight: 'bold', 
+            borderRadius: '8px',
+            cursor: 'pointer'
+          }}
+        >
+          {isParsing ? '⚡ Gemini 2.5 Flash Parsing Payload...' : '⚡ PARSE TEXT WITH GEMINI 2.5 FLASH'}
+        </button>
+      </div>
+
+      {errorMessage && (
+        <div style={{ backgroundColor: '#FEF2F2', color: '#991B1B', border: '1px solid #FCA5A5', padding: '6px 10px', fontSize: '11px', borderRadius: '6px', marginBottom: '12px' }}>
+          ℹ️ {errorMessage}
+        </div>
+      )}
+
+      {/* 1-Click Audio Presets */}
+      <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569', marginBottom: '6px' }}>
+        🔊 1-Click Emergency Voice Presets:
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <button 
+          type="button"
+          style={{ textAlign: 'left', padding: '8px 10px', fontSize: '11px', background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '6px', cursor: 'pointer' }}
+          onClick={() => applyPreset("Cobra bite at Chakan market yard 30 minutes ago, severe swelling and difficulty breathing")}
+        >
+          🔊 <strong>Preset 1: Chakan Market</strong> - Cobra bite, respiratory failure (Severe)
+        </button>
+
+        <button 
+          type="button"
+          style={{ textAlign: 'left', padding: '8px 10px', fontSize: '11px', background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '6px', cursor: 'pointer' }}
+          onClick={() => applyPreset("Victim bitten on leg near Shirur highway 45 mins ago, drooping eyelids and slurred speech")}
+        >
+          🔊 <strong>Preset 2: Shirur Highway</strong> - Neurotoxic ptosis & slurred speech
+        </button>
+
+        <button 
+          type="button"
+          style={{ textAlign: 'left', padding: '8px 10px', fontSize: '11px', background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '6px', cursor: 'pointer' }}
+          onClick={() => applyPreset("Snakebite near Pimpri YCM hospital 15 mins ago, active bleeding from wound site")}
+        >
+          🔊 <strong>Preset 3: Pimpri</strong> - Hemotoxic active bleeding
+        </button>
+      </div>
+
     </div>
   );
 }
