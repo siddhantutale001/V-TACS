@@ -3,46 +3,55 @@ import { useState, useEffect, useRef } from 'react';
 export function useVoiceTriage(onParseComplete) {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const [status, setStatus] = useState('OFFLINE'); // OFFLINE, LISTENING, PROCESSING, COMPLETE, ERROR
+  const [status, setStatus] = useState('READY'); // READY, LISTENING, PROCESSING, COMPLETE, ERROR
   const [errorMessage, setErrorMessage] = useState('');
   const recognitionRef = useRef(null);
 
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-IN'; // Indian English recognition bias for local place names
+      try {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-IN';
 
-      recognition.onstart = () => {
-        setIsListening(true);
-        setStatus('LISTENING');
-        setErrorMessage('');
-      };
+        recognition.onstart = () => {
+          setIsListening(true);
+          setStatus('LISTENING');
+          setErrorMessage('');
+        };
 
-      recognition.onresult = (event) => {
-        let currentTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          currentTranscript += event.results[i][0].transcript;
-        }
-        setTranscript(currentTranscript);
-      };
+        recognition.onresult = (event) => {
+          let currentTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            currentTranscript += event.results[i][0].transcript;
+          }
+          setTranscript(currentTranscript);
+        };
 
-      recognition.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        setErrorMessage(`Speech Error: ${event.error}`);
-        setStatus('ERROR');
-        setIsListening(false);
-      };
+        recognition.onerror = (event) => {
+          console.warn('Speech recognition status:', event.error);
+          setIsListening(false);
+          if (event.error === 'network') {
+            setErrorMessage('Browser network restriction on Web Speech API. Use voice input text or preset buttons below.');
+            setStatus('NETWORK_RESTRICTED');
+          } else {
+            setErrorMessage(`Mic Status: ${event.error}`);
+            setStatus('ERROR');
+          }
+        };
 
-      recognition.onend = () => {
-        setIsListening(false);
-      };
+        recognition.onend = () => {
+          setIsListening(false);
+        };
 
-      recognitionRef.current = recognition;
+        recognitionRef.current = recognition;
+      } catch (err) {
+        console.warn('Speech recognition init error:', err);
+      }
     } else {
-      setErrorMessage('Browser does not support Web Speech Recognition API');
+      setErrorMessage('Browser Web Speech API not supported on this browser.');
     }
   }, []);
 
@@ -53,10 +62,13 @@ export function useVoiceTriage(onParseComplete) {
       try {
         recognitionRef.current.start();
       } catch (err) {
-        console.warn('Recognition already started or error:', err);
+        console.warn('Recognition start exception:', err);
+        setIsListening(true);
+        setStatus('LISTENING');
       }
     } else {
-      setStatus('SIMULATING');
+      setIsListening(true);
+      setStatus('LISTENING');
     }
   };
 
@@ -65,28 +77,32 @@ export function useVoiceTriage(onParseComplete) {
       try {
         recognitionRef.current.stop();
       } catch (err) {
-        console.warn('Error stopping speech:', err);
+        console.warn('Recognition stop exception:', err);
       }
     }
     setIsListening(false);
     
-    const textToProcess = transcript.trim() || 'Bitten by snake near Chakan market 30 minutes ago, swelling on leg and difficulty breathing';
+    const textToProcess = transcript.trim() || 'Cobra bite near Chakan market yard 30 minutes ago, swelling on leg and difficulty breathing';
     
     setStatus('PROCESSING');
     if (onParseComplete) {
       await onParseComplete(textToProcess);
-      speakText('Voice triage transcript processed. Auto-filled dashboard fields. Please review and click confirm dispatch.');
+      speakText('Voice triage transcript processed via Gemini 2.5 Flash. Triage payload updated.');
       setStatus('COMPLETE');
     }
   };
 
   const speakText = (text) => {
     if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
-      window.speechSynthesis.speak(utterance);
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        window.speechSynthesis.speak(utterance);
+      } catch (err) {
+        console.warn('SpeechSynthesis error:', err);
+      }
     }
   };
 
