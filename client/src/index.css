@@ -1,0 +1,246 @@
+/* Windows Classic Utility Design System - V-TACS */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border-radius: 0px !important;
+  animation: none !important;
+  transition: none !important;
+}
+
+body {
+  background-color: #008080; /* Classic Teal Windows Desktop Backdrop */
+  color: #000000;
+  font-family: 'Tahoma', 'Segoe UI', 'Geneva', sans-serif;
+  font-size: 11px;
+  line-height: 1.2;
+  padding: 6px;
+  user-select: none;
+}
+
+/* Master Grid Layout */
+.app-container {
+  background-color: #C0C0C0;
+  border: 2px outset #FFFFFF;
+  box-shadow: 2px 2px 0px #000000;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 4px;
+}
+
+/* Header Bar */
+.win-header {
+  background: #000080;
+  color: #FFFFFF;
+  font-weight: bold;
+  font-size: 13px;
+  padding: 3px 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.win-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.win-header-badge {
+  background: #C0C0C0;
+  color: #000000;
+  font-size: 10px;
+  padding: 1px 4px;
+  border: 1px outset #FFFFFF;
+  font-weight: normal;
+}
+
+/* Status Bar */
+.win-statusbar {
+  background: #C0C0C0;
+  border: 1px inset #808080;
+  padding: 3px 6px;
+  margin-top: 4px;
+  display: flex;
+  justify-content: space-between;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+/* Grid Layout Panes */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 360px 1fr 340px;
+  gap: 4px;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Panel Window Box */
+.win-panel {
+  background-color: #C0C0C0;
+  border: 2px outset #FFFFFF;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.win-panel-title {
+  background: #808080;
+  color: #FFFFFF;
+  font-weight: bold;
+  padding: 2px 5px;
+  margin-bottom: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.win-panel-body {
+  padding: 2px;
+}
+
+/* Forms & Controls */
+label {
+  display: block;
+  font-weight: bold;
+  margin-top: 4px;
+  margin-bottom: 2px;
+  color: #000000;
+}
+
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+  width: 100%;
+  background-color: #FFFFFF;
+  color: #000000;
+  border: 2px inset #808080;
+  padding: 3px 4px;
+  font-family: monospace;
+  font-size: 11px;
+  outline: none;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus,
+textarea:focus {
+  background-color: #FFFFE0;
+}
+
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0;
+  font-weight: bold;
+}
+
+/* Windows Classic Buttons */
+button, .win-btn {
+  background-color: #C0C0C0;
+  color: #000000;
+  border: 2px outset #FFFFFF;
+  padding: 4px 8px;
+  font-family: 'Tahoma', sans-serif;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+  text-align: center;
+}
+
+button:active, .win-btn:active {
+  border: 2px inset #808080;
+  padding: 5px 7px 3px 9px;
+}
+
+button.primary {
+  background-color: #000080;
+  color: #FFFFFF;
+}
+
+button.danger {
+  background-color: #800000;
+  color: #FFFFFF;
+}
+
+button.success {
+  background-color: #008000;
+  color: #FFFFFF;
+}
+
+button:disabled {
+  color: #808080;
+  border: 2px outset #E0E0E0;
+  cursor: not-allowed;
+}
+
+/* Utility Tables */
+table.win-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #FFFFFF;
+  border: 2px inset #808080;
+  font-size: 11px;
+}
+
+table.win-table th {
+  background-color: #C0C0C0;
+  color: #000000;
+  border: 1px outset #FFFFFF;
+  padding: 3px 4px;
+  text-align: left;
+  font-weight: bold;
+}
+
+table.win-table td {
+  border: 1px solid #D3D3D3;
+  padding: 3px 4px;
+  font-family: monospace;
+}
+
+table.win-table tr:nth-child(even) {
+  background-color: #F8F8F8;
+}
+
+table.win-table tr.selected {
+  background-color: #000080;
+  color: #FFFFFF;
+}
+
+/* Badges & Indicators */
+.badge {
+  display: inline-block;
+  padding: 1px 4px;
+  font-family: monospace;
+  font-size: 10px;
+  font-weight: bold;
+  border: 1px solid #000000;
+}
+
+.badge-green { background-color: #008000; color: #FFFFFF; }
+.badge-red { background-color: #800000; color: #FFFFFF; }
+.badge-amber { background-color: #808000; color: #FFFFFF; }
+.badge-blue { background-color: #000080; color: #FFFFFF; }
+
+/* Voice Module Retro Indicator */
+.voice-box {
+  background-color: #000000;
+  color: #00FF00;
+  font-family: 'Consolas', 'Courier New', monospace;
+  border: 2px inset #808080;
+  padding: 6px;
+  min-height: 55px;
+  max-height: 80px;
+  overflow-y: auto;
+  font-size: 11px;
+  margin-bottom: 6px;
+}
