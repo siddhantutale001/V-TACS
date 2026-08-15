@@ -29,7 +29,22 @@ app.use('/api/', apiLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api', apiRoutes);
 
-// Health check endpoint
+// Health check & root endpoints
+app.get('/', (req, res) => {
+  res.json({
+    status: 'ONLINE',
+    system: 'V-TACS Backend API Server',
+    endpoints: {
+      health: '/health',
+      hospitals: '/api/hospitals',
+      ambulances: '/api/ambulances',
+      triageMatch: 'POST /api/triage/match',
+      voiceParse: 'POST /api/triage/voice-parse',
+      dispatchExecute: 'POST /api/dispatch/execute'
+    }
+  });
+});
+
 app.get('/health', (req, res) => {
   res.json({
     status: 'UP',

@@ -9,6 +9,12 @@ export const mockStore = {
       longitude: 73.8738,
       current_asv_vials: 85,
       ventilator_available: 1,
+      is_open: 1,
+      accepting_patients: 1,
+      is_24_7: 1,
+      opening_time: "00:00",
+      closing_time: "23:59",
+      facility_category: "TERTIARY_APEX",
       phone: "+91-20-26128000",
       address: "Near Pune Railway Station, Sassoon Road, Pune"
     },
@@ -19,6 +25,12 @@ export const mockStore = {
       longitude: 73.8188,
       current_asv_vials: 42,
       ventilator_available: 1,
+      is_open: 1,
+      accepting_patients: 1,
+      is_24_7: 1,
+      opening_time: "00:00",
+      closing_time: "23:59",
+      facility_category: "TERTIARY_APEX",
       phone: "+91-20-27422500",
       address: "Pimpri Colony, Pimpri-Chinchwad, Pune"
     },
@@ -29,16 +41,28 @@ export const mockStore = {
       longitude: 73.8122,
       current_asv_vials: 28,
       ventilator_available: 1,
+      is_open: 1,
+      accepting_patients: 1,
+      is_24_7: 1,
+      opening_time: "00:00",
+      closing_time: "23:59",
+      facility_category: "TERTIARY_APEX",
       phone: "+91-20-27290111",
       address: "Aundh Camp, Medipoint Hospital Road, Pune"
     },
     {
       id: 4,
-      name: "Chakan Rural Hospital (PHC)",
+      name: "Chakan Unregistered Rural PHC",
       latitude: 18.7617,
       longitude: 73.8587,
-      current_asv_vials: 8,
+      current_asv_vials: 0,
       ventilator_available: 0,
+      is_open: 1,
+      accepting_patients: 1,
+      is_24_7: 0,
+      opening_time: "08:00",
+      closing_time: "20:00",
+      facility_category: "UNREGISTERED_PHC",
       phone: "+91-2135-222300",
       address: "Shikrapur Road, Chakan, Maharashtra"
     },
@@ -49,6 +73,12 @@ export const mockStore = {
       longitude: 74.3789,
       current_asv_vials: 4,
       ventilator_available: 0,
+      is_open: 1,
+      accepting_patients: 1,
+      is_24_7: 0,
+      opening_time: "08:00",
+      closing_time: "20:00",
+      facility_category: "GENERAL_SECONDARY",
       phone: "+91-2138-222150",
       address: "Pune-Nagar Highway, Shirur, Maharashtra"
     },
@@ -59,6 +89,12 @@ export const mockStore = {
       longitude: 73.9260,
       current_asv_vials: 30,
       ventilator_available: 1,
+      is_open: 1,
+      accepting_patients: 1,
+      is_24_7: 1,
+      opening_time: "00:00",
+      closing_time: "23:59",
+      facility_category: "TERTIARY_APEX",
       phone: "+91-20-26871234",
       address: "Solapur Road, Hadapsar, Pune"
     },
@@ -69,8 +105,30 @@ export const mockStore = {
       longitude: 73.6800,
       current_asv_vials: 15,
       ventilator_available: 1,
+      is_open: 1,
+      accepting_patients: 1,
+      is_24_7: 1,
+      opening_time: "00:00",
+      closing_time: "23:59",
+      facility_category: "GENERAL_SECONDARY",
       phone: "+91-2114-223400",
       address: "Station Road, Talegaon Dabhade, Maharashtra"
+    },
+    {
+      id: 8,
+      name: "Pune Eye & Laser Specialty Clinic (EXCLUDED)",
+      latitude: 18.5200,
+      longitude: 73.8500,
+      current_asv_vials: 0,
+      ventilator_available: 0,
+      is_open: 1,
+      accepting_patients: 1,
+      is_24_7: 0,
+      opening_time: "09:00",
+      closing_time: "18:00",
+      facility_category: "SPECIALTY_EXCLUDED",
+      phone: "+91-20-25500000",
+      address: "JM Road, Shivajinagar, Pune"
     }
   ],
   ambulances: [
@@ -81,7 +139,8 @@ export const mockStore = {
       current_lon: 73.8446,
       status: "available",
       driver_name: "Suresh Shinde",
-      driver_phone: "+91-9822011111"
+      driver_phone: "+91-9822011111",
+      last_ping_time: new Date().toISOString()
     },
     {
       id: 2,
@@ -90,7 +149,8 @@ export const mockStore = {
       current_lon: 73.8500,
       status: "available",
       driver_name: "Ramesh Pawar",
-      driver_phone: "+91-9822022222"
+      driver_phone: "+91-9822022222",
+      last_ping_time: new Date().toISOString()
     },
     {
       id: 3,
@@ -99,7 +159,8 @@ export const mockStore = {
       current_lon: 73.9300,
       status: "available",
       driver_name: "Mahesh Jadhav",
-      driver_phone: "+91-9822033333"
+      driver_phone: "+91-9822033333",
+      last_ping_time: new Date().toISOString()
     },
     {
       id: 4,
@@ -108,7 +169,8 @@ export const mockStore = {
       current_lon: 73.8100,
       status: "dispatched",
       driver_name: "Aniket Kulkarni",
-      driver_phone: "+91-9822044444"
+      driver_phone: "+91-9822044444",
+      last_ping_time: new Date().toISOString()
     }
   ],
   active_cases: [
@@ -118,6 +180,9 @@ export const mockStore = {
       victim_lon: 73.8600,
       location_description: "Near Chakan Market Yard",
       symptoms: "Bitten on ankle 40 min ago. Severe local swelling, ptosis, slurred speech.",
+      victim_blood_group: "O+ Positive",
+      victim_medical_history: "Hypertension",
+      victim_emergency_contact: "+91-9876543210",
       bite_time: new Date(Date.now() - 40 * 60000).toISOString(),
       assigned_hospital_id: 1,
       assigned_hospital_name: "Sassoon General Hospital (Apex Trauma)",

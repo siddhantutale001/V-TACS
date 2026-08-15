@@ -163,3 +163,71 @@ export async function getActiveCases(req, res) {
     return res.json({ success: true, count: mockStore.active_cases.length, data: mockStore.active_cases });
   }
 }
+
+// Receive live GPS telemetry ping from ambulance driver/device
+export async function receiveTelemetry(req, res) {
+  try {
+    const { ambulance_id, latitude, longitude } = req.body;
+    if (!ambulance_id || !latitude || !longitude) {
+      return res.status(400).json({ success: false, error: 'ambulance_id, latitude, and longitude are required' });
+    }
+
+    const aId = parseInt(ambulance_id, 10);
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+    const now = new Date();
+
+    if (isConnected) {
+      await query(
+        'UPDATE ambulances SET current_lat = ?, current_lon = ?, last_ping_time = ? WHERE id = ?',
+        [lat, lon, now, aId]
+      );
+    } else {
+      const amb = mockStore.ambulances.find(a => a.id === aId);
+      if (amb) {
+        amb.current_lat = lat;
+        amb.current_lon = lon;
+        amb.last_ping_time = now.toISOString();
+      }
+    }
+
+    return res.json({ success: true, message: `Telemetry updated for ambulance ${aId}`, timestamp: now });
+  } catch (error) {
+    console.error('Error updating ambulance telemetry:', error);
+    return res.status(500).json({ success: false, error: 'Failed to record ambulance telemetry' });
+  }
+}
+
+// Get tracking status for a specific ambulance (3-state evaluator)
+export async function getAmbulanceTracking(req, res) {
+  try {
+    const { ambulanceId } = req.params;
+    const aId = parseInt(ambulanceId, 10);
+
+    let ambulance = null;
+    if (isConnected) {
+      const rows = await query('SELECT * FROM ambulances WHERE id = ?', [aId]);
+      if (rows.length > 0) ambulance = rows[0];
+    } else {
+      ambulance = mockStore.ambulances.find(a => a.id === aId);
+    }
+
+    if (!ambulance) {
+      return res.json({ success: true, tracking_state: 'NO_AMBULANCE', ambulance: null });
+    }
+
+    const lastPing = ambulance.last_ping_time ? new Date(ambulance.last_ping_time).getTime() : 0;
+    const elapsedSeconds = Math.floor((Date.now() - lastPing) / 1000);
+    const trackingState = elapsedSeconds <= 30 ? 'ACTIVE_TRACKING' : 'SIGNAL_LOST';
+
+    return res.json({
+      success: true,
+      tracking_state: trackingState,
+      last_ping_seconds_ago: elapsedSeconds,
+      ambulance
+    });
+  } catch (error) {
+    console.error('Error fetching ambulance tracking:', error);
+    return res.status(500).json({ success: false, error: 'Failed to fetch ambulance tracking status' });
+  }
+}
