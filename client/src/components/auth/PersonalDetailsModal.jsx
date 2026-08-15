@@ -113,6 +113,27 @@ export default function PersonalDetailsModal({ initialDetails, onSaveDetails, on
           <button type="submit" className="save-profile-btn">
             💾 SAVE PROFILE & PROCEED TO EMERGENCY TRIAGE
           </button>
+
+          {onSkipOnboarding && (
+            <button 
+              type="button" 
+              className="skip-emergency-btn"
+              onClick={onSkipOnboarding}
+              style={{
+                marginTop: '10px',
+                width: '100%',
+                padding: '12px',
+                backgroundColor: '#dc2626',
+                color: '#ffffff',
+                border: 'none',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                letterSpacing: '0.5px'
+              }}
+            >
+              🚨 SKIP PROFILE & LAUNCH IMMEDIATE EMERGENCY TRIAGE
+            </button>
+          )}
         </form>
 
         {/* Account Deletion Section */}

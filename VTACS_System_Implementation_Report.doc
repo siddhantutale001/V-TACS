@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+<meta charset="utf-8">
+<title>V-TACS System Implementation Report</title>
+<style>
+  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #1e293b; margin: 40px; }
+  h1 { font-size: 20pt; color: #0f172a; border-bottom: 2px solid #0284c7; padding-bottom: 6px; }
+  h2 { font-size: 14pt; color: #0284c7; margin-top: 20px; }
+  h3 { font-size: 12pt; color: #334155; }
+  .warning-box { background-color: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; padding: 10px; margin: 10px 0; border-radius: 6px; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+  th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; font-size: 10pt; }
+  th { background-color: #f1f5f9; font-weight: bold; }
+  code { font-family: Consolas, monospace; background-color: #f8fafc; padding: 2px 4px; border: 1px solid #e2e8f0; }
+</style>
+</head>
+<body>
+
+<h1>V-TACS Complete System Implementation & Architectural Report</h1>
+<p><strong>Venom Treatment & Ambulance Coordination System (V-TACS)</strong><br/>
+<em>AI SDG Global Hackathon 2026 | Team: Rocket Coders (Team ID: I4I 505)</em></p>
+
+<hr/>
+
+<h2>1. Executive Summary</h2>
+<p>V-TACS is a real-time emergency logistics and triage coordination platform digitizing the National Action Plan for Prevention and Control of Snakebite Envenoming (NAPSE). The platform connects victim GPS coordinates, spoken voice symptoms, hospital Anti-Snake Venom (ASV) stock, ICU ventilator availability, and live ambulance telemetry to identify and coordinate the most suitable treatment facility in real time.</p>
+
+<h2>2. Full List of Features Implemented</h2>
+
+<h3>2.1 🚨 Instant Emergency Profile Bypass (Skip Onboarding)</h3>
+<ul>
+  <li><strong>Files Modified:</strong> <code>PersonalDetailsModal.jsx</code> & <code>App.jsx</code></li>
+  <li><strong>Functionality:</strong> Bypasses mandatory profile onboarding during acute emergency distress with a single click ("🚨 SKIP PROFILE & LAUNCH IMMEDIATE EMERGENCY TRIAGE"), ensuring zero friction for victims or bystanders in panic mode.</li>
+</ul>
+
+<h3>2.2 ❌ Explicit Gemini API Error Reporting (No Silent Fallback)</h3>
+<ul>
+  <li><strong>Files Modified:</strong> <code>geminiService.js</code>, <code>api.js</code> (Server & Client), <code>VoiceTriagePanel.jsx</code></li>
+  <li><strong>Functionality:</strong> Replaced silent keyword fallbacks with explicit error handling (<code>GEMINI_API_KEY_MISSING</code>). When <code>GEMINI_API_KEY</code> is not present in <code>.env</code>, the frontend UI explicitly surfaces a prominent red warning banner rather than masking the missing key.</li>
+</ul>
+
+<h3>2.3 🗺 Interactive Leaflet GIS Map Visualizer</h3>
+<ul>
+  <li><strong>Files Created/Modified:</strong> <code>EmergencyMap.jsx</code> & <code>ModernUserDashboard.jsx</code></li>
+  <li><strong>Functionality:</strong> Embedded an interactive 2D GIS map canvas (OpenStreetMap + Leaflet Engine) plotting:
+    <ul>
+      <li>📍 <strong>Red Pulse Marker:</strong> Victim GPS location.</li>
+      <li>🏥 <strong>Green & Blue Markers:</strong> Candidate hospitals with popups showing ASV stock, ventilator status, and operating hours.</li>
+      <li>🚑 <strong>Orange Vehicle Marker:</strong> Assigned ambulance location.</li>
+      <li>🛣 <strong>Polyline Route:</strong> Visual dashed road route connecting victim ➔ matched hospital and ambulance.</li>
+    </ul>
+  </li>
+</ul>
+
+<h3>2.4 📡 Ambulance Telemetry API & 3-State Patient Tracker</h3>
+<ul>
+  <li><strong>Files Created/Modified:</strong> <code>dispatchController.js</code>, <code>api.js</code>, <code>AmbulanceTrackerCard.jsx</code></li>
+  <li><strong>Functionality:</strong> Implemented <code>POST /api/ambulance/telemetry</code> & <code>GET /api/ambulance/:id/tracking</code>. Evaluates GPS signal freshness (&lt; 30s vs &gt; 30s) to render 3 distinct patient tracking states:
+    <ul>
+      <li>🚨 <strong>State 1 (No Ambulance Available):</strong> Red alert banner recommending private transport + 108 helpline dialer.</li>
+      <li>🟢 <strong>State 2 (Active Tracking):</strong> Live moving vehicle marker + dynamic ETA countdown (&lt; 30s ping).</li>
+      <li>⚠️ <strong>State 3 (Signal Lost / Telemetry Offline):</strong> Amber warning banner alerting telemetry offline (&gt; 30s ping) + driver phone button.</li>
+    </ul>
+  </li>
+</ul>
+
+<h3>2.5 🏥 Hospital Classification Engine & Worst-Case PHC Fallback Routing</h3>
+<ul>
+  <li><strong>Files Modified:</strong> <code>schema.sql</code>, <code>seed.sql</code>, <code>mockStore.js</code>, <code>triageController.js</code>, <code>HospitalList.jsx</code>, <code>ModernUserDashboard.jsx</code></li>
+  <li><strong>Functionality:</strong> Categorizes facilities into:
+    <ul>
+      <li><code>TERTIARY_APEX</code>: Apex trauma hospitals (Sassoon, YCM, Aundh, Hadapsar). Inferred 24/7 care, verified ASV stock, ICU ventilators.</li>
+      <li><code>GENERAL_SECONDARY</code>: General & sub-district hospitals (Talegaon, Shirur).</li>
+      <li><code>UNREGISTERED_PHC</code>: Rural Primary Health Centers (<strong>Assumed 0 ASV Vials - Real-World Stockout Risk</strong>).</li>
+      <li><code>SPECIALTY_EXCLUDED</code>: Eye clinics, dental clinics, dermatology centers (<strong>Excluded automatically</strong>).</li>
+    </ul>
+  </li>
+  <li><strong>Worst-Case Fallback Routing:</strong> Unregistered PHCs stay hidden under normal conditions. If NO ambulance is available OR travel time to Tier 1 hospitals &gt; 40 mins AND a PHC is &lt; 15 mins away, the algorithm surfaces the PHC as a <strong>"🚨 Emergency First Aid & Stabilization Stop Only (No ASV Vials in Store)"</strong>.</li>
+</ul>
+
+<h3>2.6 🕒 24/7 Operating Hours & Triage Time Evaluation</h3>
+<ul>
+  <li><strong>Files Modified:</strong> <code>schema.sql</code>, <code>seed.sql</code>, <code>mockStore.js</code>, <code>triageController.js</code>, <code>HospitalDashboard.jsx</code></li>
+  <li><strong>Functionality:</strong> Added <code>is_24_7</code>, <code>opening_time</code>, and <code>closing_time</code> fields. The triage algorithm automatically compares current local time against hospital operating hours and excludes after-hours facilities. Medical Officers can toggle 24/7 mode or set custom opening/closing time pickers.</li>
+</ul>
+
+<h3>2.7 🏥 Hospital Operational Controls (Open/Closed & Capacity Toggles)</h3>
+<ul>
+  <li><strong>Files Modified:</strong> <code>HospitalDashboard.jsx</code> & <code>hospitalController.js</code></li>
+  <li><strong>Functionality:</strong> Medical Officers can toggle:
+    <ul>
+      <li><strong>Facility Operational Status (Open / Closed):</strong> Excludes closed facilities from triage recommendations.</li>
+      <li><strong>Accepting Emergency Patients Capacity Toggle (Yes / No - Overcrowded):</strong> Prevents routing to overcrowded facilities.</li>
+    </ul>
+  </li>
+</ul>
+
+<h3>2.8 🚨 Live Incoming Emergency Patient Alarm Modal</h3>
+<ul>
+  <li><strong>File Modified:</strong> <code>HospitalDashboard.jsx</code></li>
+  <li><strong>Functionality:</strong> Visual modal popup + audio alarm chime on the Hospital Dashboard when a victim is dispatched to their facility, showing victim symptoms, reserved ASV vials, and incoming ETA countdown.</li>
+</ul>
+
+<h3>2.9 📄 Export Audit Log (CSV Download)</h3>
+<ul>
+  <li><strong>File Modified:</strong> <code>HospitalDashboard.jsx</code></li>
+  <li><strong>Functionality:</strong> Medical Officers can click <strong>"📄 EXPORT AUDIT LOG (CSV)"</strong> to download official case records, patient medical profiles, and ASV usage histories for hospital administration.</li>
+</ul>
+
+<h3>2.10 🩸 Patient Medical Profile Auto-Fill</h3>
+<ul>
+  <li><strong>File Modified:</strong> <code>ModernUserDashboard.jsx</code></li>
+  <li><strong>Functionality:</strong> Automatically auto-populates saved blood group, allergies, and emergency contact details into emergency dispatch payloads.</li>
+</ul>
+
+<h3>2.11 🎨 Favicon & Backend Root Handler Fixes</h3>
+<ul>
+  <li><strong>Files Created/Modified:</strong> <code>favicon.svg</code>, <code>index.html</code>, <code>server/index.js</code></li>
+  <li><strong>Functionality:</strong> Created SVG favicon asset and added backend root route <code>GET /</code> returning JSON API status to eliminate 404 browser console errors.</li>
+</ul>
+
+<h2>3. Database Schema Alterations Summary</h2>
+
+<pre><code>-- Extended Hospital Schema
+ALTER TABLE hospitals ADD COLUMN (
+    is_open TINYINT(1) DEFAULT 1,
+    accepting_patients TINYINT(1) DEFAULT 1,
+    is_24_7 TINYINT(1) DEFAULT 1,
+    opening_time TIME DEFAULT '08:00:00',
+    closing_time TIME DEFAULT '20:00:00',
+    facility_category ENUM('TERTIARY_APEX', 'GENERAL_SECONDARY', 'UNREGISTERED_PHC', 'SPECIALTY_EXCLUDED') DEFAULT 'TERTIARY_APEX'
+);
+
+-- Ambulance Telemetry Schema
+ALTER TABLE ambulances ADD COLUMN (
+    last_ping_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Active Emergency Case Victim Profile Schema
+ALTER TABLE active_cases ADD COLUMN (
+    victim_blood_group VARCHAR(10),
+    victim_medical_history TEXT,
+    victim_emergency_contact VARCHAR(50)
+);</code></pre>
+
+<div class="warning-box">
+  <h3>🔔 Pending Action Items / System Reminders</h3>
+  <ol>
+    <li><strong>Missing <code>.env</code> File:</strong> Requires <code>GEMINI_API_KEY</code>, <code>VITE_CLERK_PUBLISHABLE_KEY</code>, and database config.</li>
+    <li><strong>Live MySQL Database Connection:</strong> Currently operating on temporary in-memory store <code>mockStore.js</code> (resets on server restart).</li>
+  </ol>
+</div>
+
+<hr/>
+<p style="font-size: 9pt; color: #64748b;"><em>Report Generated on: 2026-08-15 | V-TACS System Documentation</em></p>
+
+</body>
+</html>
