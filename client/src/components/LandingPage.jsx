@@ -24,34 +24,41 @@ export default function LandingPage({ onSelectPortal }) {
           <div className="portal-card user-portal-card" onClick={() => onSelectPortal('USER_PORTAL')}>
             <div className="portal-icon">🆘</div>
             <h3>Public Emergency Triage</h3>
-            <p>Hands-Free Conversational Voice Triage powered by Gemini 2.5 Flash LLM. Fast emergency routing, ASV hospital locator, & instant ambulance dispatch.</p>
-            <div className="portal-auth-note">
-              🔐 User Login / Sign Up via <strong>Clerk Auth</strong>
+            <p>Hands-Free Conversational Voice Triage powered by AI Medical Triage Engine. Fast emergency routing, ASV hospital locator, & instant ambulance dispatch.</p>
+            <div className="landing-feature-pills">
+              <span>⚡ Real-Time ASV Stock Matrix</span>
+              <span>🎙️ AI Voice Triage</span>
+              <span>🔐 Secure Authentication</span>
+              <span>🚑 1-Click Ambulance Dispatch</span>
             </div>
-            <button className="portal-btn user-btn">
-              ENTER PUBLIC EMERGENCY PORTAL →
-            </button>
           </div>
-
-          {/* Card 2: Hospital Administrative Portal */}
-          <div className="portal-card hospital-portal-card" onClick={() => onSelectPortal('HOSPITAL_PORTAL')}>
-            <div className="portal-icon">🏥</div>
-            <h3>Hospital Administrative Portal</h3>
-            <p>Utilitarian dashboard for Medical Officers, ASV inventory stock auditing, real-time dispatch management, and regional ICU ventilator monitoring.</p>
-            <div className="portal-auth-note">
-              🔑 Medical Officer JWT Authentication
-            </div>
-            <button className="portal-btn hospital-btn">
-              ENTER HOSPITAL ADMIN DASHBOARD →
-            </button>
-          </div>
-
+          <button className="landing-action-btn primary-action">ENTER PUBLIC PORTAL →</button>
         </div>
 
-        <div className="landing-footer">
-          V-TACS System v2.0 • Powered by OSRM Contraction Hierarchies, Gemini 2.5 Flash & Aiven Cloud MySQL
+        {/* Option 2: Hospital Operations Audit Portal */}
+        <div className="portal-choice-card hospital-portal" onClick={() => onSelectPortal('HOSPITAL_PORTAL')}>
+          <div className="portal-badge badge-hospital">PROTECTED MEDICAL OFFICER ACCESS</div>
+          <div className="portal-icon">🏥</div>
+          <div className="portal-content">
+            <h2>Hospital Admin & Operations Center</h2>
+            <p>For Medical Officers & Emergency Staff: Audit ASV vial inventory, update ICU bed capacity, track incoming victims, and monitor regional stock.</p>
+            <div className="landing-feature-pills">
+              <span>📋 ASV Inventory Audit</span>
+              <span>🫁 ICU Bed Capacity</span>
+              <span>🚨 Incoming Patient Tracking</span>
+            </div>
+          </div>
+          <button className="landing-action-btn hospital-action">OFFICER LOGIN →</button>
         </div>
+
       </div>
+
+      <footer className="landing-footer">
+        <div>Emergency Medical Assistance: <strong>108 / 15400 (NAPSE)</strong></div>
+        <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '4px' }}>
+          V-TACS System v2.0 • Real-Time Emergency Triage & ASV Routing Network
+        </div>
+      </footer>
     </div>
   );
 }

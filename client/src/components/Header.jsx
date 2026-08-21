@@ -6,7 +6,7 @@ export default function Header({ user, onOpenLogin }) {
       <div className="win-header-title">
         <span>V-TACS v1.0 [NAPSE National Action Plan Standard]</span>
         <span className="win-header-badge">HELPLINE: 15400 ACTIVE</span>
-        <span className="win-header-badge">OSRM + HAVERSINE ENGINE</span>
+        <span className="win-header-badge">REAL-TIME ROUTING ENGINE</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <span style={{ fontFamily: 'monospace', fontSize: '11px' }}>

@@ -106,7 +106,7 @@ export default function ModernUserDashboard({
           <div className="modern-logo">🐍 V-TACS</div>
           <div>
             <h1>Emergency Victim Triage Portal</h1>
-            <div className="modern-subtitle">NAPSE 15400 Helpline • Gemini 2.5 Flash AI Engine</div>
+            <div className="modern-subtitle">NAPSE 15400 Helpline • Real-Time Triage Network</div>
           </div>
         </div>
 
@@ -142,10 +142,10 @@ export default function ModernUserDashboard({
           <div className="modern-card hero-voice-card">
             <div className="card-header">
               <h2>🎤 Voice-Activated Emergency Triage</h2>
-              <span className="badge-pill pill-ai">GEMINI 2.5 FLASH LLM</span>
+              <span className="badge-pill pill-ai">AI VOICE TRIAGE</span>
             </div>
             <p className="card-desc">
-              Speak naturally into your microphone describing the snakebite, symptoms, and location. Gemini 2.5 Flash will automatically analyze and populate your triage payload.
+              Speak naturally into your microphone describing the snakebite, symptoms, and location. The system will automatically analyze and populate your triage payload.
             </p>
             
             <VoiceTriagePanel 
@@ -270,7 +270,7 @@ export default function ModernUserDashboard({
             <div className="modern-card match-result-card">
               <div className="card-header">
                 <h2>🏥 Matched Hospital & Route</h2>
-                <span className="badge-pill pill-routing">{selectedHospital.engine || 'OSRM Matrix'}</span>
+                <span className="badge-pill pill-routing">{selectedHospital.engine || 'GIS Smart Route'}</span>
               </div>
 
               <div className="hospital-highlight-box">

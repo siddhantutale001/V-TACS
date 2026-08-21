@@ -266,7 +266,7 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
                     style={{ width: '100%', padding: '6px', fontSize: '11px', letterSpacing: '0.5px' }}
                     disabled={isUpdating}
                   >
-                    {isUpdating ? 'SAVING AUDIT RECORD...' : '💾 SAVE & SYNC ASV STOCK TO AIVEN CLOUD'}
+                    {isUpdating ? 'SAVING AUDIT RECORD...' : '💾 SAVE & SYNC ASV STOCK RECORD'}
                   </button>
                 </form>
               ) : (
@@ -474,12 +474,12 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
         </div>
       )}
 
-      {/* Status Bar */}
-      <div className="win-statusbar">
-        <span>V-TACS HOSPITAL OPERATIONS: LIVE</span>
-        <span>AIVEN CLOUD MYSQL SYNC: ACTIVE</span>
-        <span>NAPSE HELPLINE: 15400 ACTIVE</span>
-      </div>
+      {/* Retro Utility Footer Bar */}
+      <footer className="hosp-footer">
+        <span>STATUS: MEDICAL OFFICER AUTHORIZED</span>
+        <span>CENTRAL DATABASE SYNC: ACTIVE</span>
+        <span>HELPLINE: 15400</span>
+      </footer>
 
     </div>
   );

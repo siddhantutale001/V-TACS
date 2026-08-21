@@ -56,7 +56,7 @@ export default function VoiceTriagePanel({ onApplyParsedData, onParseVoiceTransc
         <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#0F172A' }}>
           🎤 Conversational Voice Triage
         </div>
-        <span className="badge-pill pill-ai">GEMINI 2.5 FLASH ENGINE</span>
+        <span className="badge-pill pill-ai">AI TRIAGE ENGINE</span>
       </div>
 
       {/* Mic Button Row */}
@@ -127,13 +127,13 @@ export default function VoiceTriagePanel({ onApplyParsedData, onParseVoiceTransc
             cursor: 'pointer'
           }}
         >
-          {isParsing ? '⚡ Gemini 2.5 Flash Parsing Payload...' : '⚡ PARSE TEXT WITH GEMINI 2.5 FLASH'}
+          {isParsing ? '⚡ Analyzing Emergency Payload...' : '⚡ PARSE EMERGENCY TEXT'}
         </button>
       </div>
 
       {apiKeyError && (
         <div style={{ backgroundColor: '#FEF2F2', color: '#991B1B', border: '2px solid #FCA5A5', padding: '10px 12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '8px', marginBottom: '14px', lineHeight: '1.4' }}>
-          ❌ <strong>Gemini API Key Missing / Error:</strong> {apiKeyError}
+          ❌ <strong>AI Parsing Service Notice:</strong> {apiKeyError}
         </div>
       )}
 

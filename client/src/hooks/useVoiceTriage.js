@@ -87,7 +87,7 @@ export function useVoiceTriage(onParseComplete) {
     setStatus('PROCESSING');
     if (onParseComplete) {
       await onParseComplete(textToProcess);
-      speakText('Voice triage transcript processed via Gemini 2.5 Flash. Triage payload updated.');
+      speakText('Voice triage transcript processed via AI voice engine. Triage payload updated.');
       setStatus('COMPLETE');
     }
   };

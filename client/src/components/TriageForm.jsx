@@ -129,7 +129,7 @@ export default function TriageForm({ formData, setFormData, onCalculateMatch, is
             style={{ width: '100%', marginTop: '6px', padding: '6px' }}
             disabled={isLoading}
           >
-            {isLoading ? 'CALCULATING OSRM MATRIX...' : '🔍 CALCULATE NEAREST HOSPITAL & AMBULANCE'}
+            {isLoading ? 'CALCULATING ROUTE MATRIX...' : '🔍 CALCULATE NEAREST HOSPITAL & AMBULANCE'}
           </button>
         </form>
       </div>

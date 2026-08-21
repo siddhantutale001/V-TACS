@@ -67,7 +67,7 @@ export default function HospitalList({ hospitals, selectedHospital, onSelectHosp
                   </td>
                   <td>
                     <span className={`badge ${h.fallback_used ? 'badge-red' : 'badge-blue'}`}>
-                      {h.engine || 'OSRM'}
+                      {h.engine || 'Smart Route'}
                     </span>
                   </td>
                   <td>
