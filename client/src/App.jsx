@@ -191,10 +191,11 @@ export default function App() {
           />
 
           {/* Mandatory onboarding modal if user has not completed details */}
-          {(showMandatoryOnboarding || !userProfile) && (
+          {(showMandatoryOnboarding && !userProfile) && (
             <PersonalDetailsModal 
               initialDetails={userProfile}
               onSaveDetails={handleSaveProfile}
+              onSkipOnboarding={() => setShowMandatoryOnboarding(false)}
               onDeleteAccount={handleDeleteAccount}
               isDeleting={isDeletingAccount}
             />

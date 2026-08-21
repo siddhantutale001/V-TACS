@@ -8,10 +8,10 @@ export async function parseVoiceTranscriptWithGemini(transcriptText) {
 
   const apiKey = config.geminiApiKey;
 
-  // Rule-based keyword extraction fallback if Gemini API key is not configured
+  // Explicit error reporting if Gemini API key is missing or default placeholder
   if (!apiKey || apiKey === '' || apiKey === 'YOUR_GEMINI_API_KEY') {
-    console.log('[GEMINI SERVICE] API key missing. Using built-in emergency NLP parser fallback.');
-    return fallbackNlpParser(transcriptText);
+    console.warn('[GEMINI SERVICE WARN] GEMINI_API_KEY is not configured in .env file.');
+    throw new Error('GEMINI_API_KEY_MISSING');
   }
 
   try {

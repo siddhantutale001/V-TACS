@@ -42,6 +42,11 @@ export default function HospitalList({ hospitals, selectedHospital, onSelectHosp
                   <td><strong>#{idx + 1}</strong></td>
                   <td>
                     <strong>{h.name}</strong>
+                    {h.is_first_aid_only && (
+                      <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #EF4444', color: '#991B1B', fontSize: '9px', fontWeight: 'bold', padding: '2px 4px', borderRadius: '4px', marginTop: '2px' }}>
+                        🚨 FIRST AID & STABILIZATION STOP ONLY (NO ASV VIALS IN STORE)
+                      </div>
+                    )}
                     <div style={{ fontSize: '9px', opacity: 0.8 }}>{h.address}</div>
                   </td>
                   <td>{h.distance_km} km</td>
@@ -49,8 +54,8 @@ export default function HospitalList({ hospitals, selectedHospital, onSelectHosp
                     <span className="badge badge-amber">{h.eta_minutes} MIN</span>
                   </td>
                   <td>
-                    <span className={`badge ${h.current_asv_vials > 15 ? 'badge-green' : (h.current_asv_vials > 0 ? 'badge-amber' : 'badge-red')}`}>
-                      {h.current_asv_vials} VIALS
+                    <span className={`badge ${h.is_first_aid_only ? 'badge-red' : (h.current_asv_vials > 15 ? 'badge-green' : (h.current_asv_vials > 0 ? 'badge-amber' : 'badge-red'))}`}>
+                      {h.is_first_aid_only ? '0 VIALS (FIRST AID ONLY)' : `${h.current_asv_vials} VIALS`}
                     </span>
                   </td>
                   <td>

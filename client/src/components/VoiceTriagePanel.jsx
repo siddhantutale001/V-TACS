@@ -5,24 +5,32 @@ export default function VoiceTriagePanel({ onApplyParsedData, onParseVoiceTransc
   const [isParsing, setIsParsing] = useState(false);
   const [manualText, setManualText] = useState('');
 
-  const handleParseText = async (textToParse) => {
-    const targetText = textToParse || manualText || transcript;
-    if (!targetText || !targetText.trim()) {
-      alert('Please enter or speak emergency symptoms first.');
-      return;
-    }
-    setIsParsing(true);
-    try {
-      const parsedResult = await onParseVoiceTranscript(targetText);
-      if (parsedResult && parsedResult.data) {
-        onApplyParsedData(parsedResult.data);
+    const [apiKeyError, setApiKeyError] = useState(null);
+
+    const handleParseText = async (textToParse) => {
+      const targetText = textToParse || manualText || transcript;
+      if (!targetText || !targetText.trim()) {
+        alert('Please enter or speak emergency symptoms first.');
+        return;
       }
-    } catch (err) {
-      console.error('Voice parsing error:', err);
-    } finally {
-      setIsParsing(false);
-    }
-  };
+      setIsParsing(true);
+      setApiKeyError(null);
+      try {
+        const parsedResult = await onParseVoiceTranscript(targetText);
+        if (parsedResult && parsedResult.error === 'GEMINI_API_KEY_MISSING') {
+          setApiKeyError(parsedResult.message || 'Gemini API key is missing in server .env file.');
+        } else if (parsedResult && parsedResult.data) {
+          onApplyParsedData(parsedResult.data);
+        } else if (parsedResult && !parsedResult.success) {
+          setApiKeyError(parsedResult.message || 'Failed to parse voice transcript.');
+        }
+      } catch (err) {
+        console.error('Voice parsing error:', err);
+        setApiKeyError('Server error while processing voice transcript.');
+      } finally {
+        setIsParsing(false);
+      }
+    };
 
   const {
     isListening,
@@ -122,6 +130,12 @@ export default function VoiceTriagePanel({ onApplyParsedData, onParseVoiceTransc
           {isParsing ? '⚡ Gemini 2.5 Flash Parsing Payload...' : '⚡ PARSE TEXT WITH GEMINI 2.5 FLASH'}
         </button>
       </div>
+
+      {apiKeyError && (
+        <div style={{ backgroundColor: '#FEF2F2', color: '#991B1B', border: '2px solid #FCA5A5', padding: '10px 12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '8px', marginBottom: '14px', lineHeight: '1.4' }}>
+          ❌ <strong>Gemini API Key Missing / Error:</strong> {apiKeyError}
+        </div>
+      )}
 
       {errorMessage && (
         <div style={{ backgroundColor: '#FEF2F2', color: '#991B1B', border: '1px solid #FCA5A5', padding: '6px 10px', fontSize: '11px', borderRadius: '6px', marginBottom: '12px' }}>

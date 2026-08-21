@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import VoiceTriagePanel from '../VoiceTriagePanel';
 import PersonalDetailsModal from '../auth/PersonalDetailsModal';
+import EmergencyMap from '../map/EmergencyMap';
 
 export default function ModernUserDashboard({ 
   userAuth, 
@@ -21,10 +22,25 @@ export default function ModernUserDashboard({
     victim_lat: '18.7617',
     victim_lon: '73.8587',
     location_description: 'Chakan Market Yard (Rural North)',
-    symptoms: 'Snakebite envenoming symptoms',
+    symptoms: userProfile?.medicalConditions ? `Pre-existing: ${userProfile.medicalConditions}` : 'Snakebite envenoming symptoms',
+    victim_blood_group: userProfile?.bloodGroup || 'O+',
+    victim_medical_history: userProfile?.medicalConditions || '',
+    victim_emergency_contact: userProfile?.emergencyContactPhone || '',
     asv_vials_needed: 10,
     requires_ventilator: false
   });
+
+  // Auto-fill form data when userProfile changes
+  useEffect(() => {
+    if (userProfile) {
+      setFormData(prev => ({
+        ...prev,
+        victim_blood_group: userProfile.bloodGroup || prev.victim_blood_group,
+        victim_medical_history: userProfile.medicalConditions || prev.victim_medical_history,
+        victim_emergency_contact: userProfile.emergencyContactPhone || prev.victim_emergency_contact
+      }));
+    }
+  }, [userProfile]);
 
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [geoStatus, setGeoStatus] = useState('');
@@ -226,6 +242,21 @@ export default function ModernUserDashboard({
             <div className="kin-blood">Blood Group: <span>{userProfile?.bloodGroup || 'O+'}</span></div>
           </div>
 
+          {/* Live Interactive GIS Map Visualizer */}
+          <div className="modern-card" style={{ padding: '12px', marginBottom: '16px' }}>
+            <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#0F172A', marginBottom: '10px' }}>
+              🗺 Interactive Emergency Map (OpenStreetMap)
+            </div>
+            <EmergencyMap 
+              victimLat={formData.victim_lat}
+              victimLon={formData.victim_lon}
+              victimLocation={formData.location_description}
+              hospitals={matchData?.candidate_hospitals || []}
+              matchedHospital={selectedHospital}
+              matchedAmbulance={matchData?.matched_ambulance}
+            />
+          </div>
+
           {/* Matched Hospital & Ambulance Card */}
           {selectedHospital ? (
             <div className="modern-card match-result-card">
@@ -237,6 +268,13 @@ export default function ModernUserDashboard({
               <div className="hospital-highlight-box">
                 <h3>{selectedHospital.name}</h3>
                 <p>{selectedHospital.address}</p>
+
+                {selectedHospital.is_first_aid_only && (
+                  <div style={{ backgroundColor: '#FEF2F2', border: '2px solid #EF4444', color: '#991B1B', padding: '10px 12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '8px', marginBottom: '12px', lineHeight: '1.4' }}>
+                    🚨 <strong>FIRST AID & STABILIZATION STOP ONLY (NO ASV VIALS)</strong><br/>
+                    This unregistered PHC facility does NOT have antivenom vials in stock. Recommended ONLY as a worst-case emergency stop for immediate CPR, airway stabilization, and local first aid while secondary transport to a Tier 1 hospital is arranged.
+                  </div>
+                )}
                 
                 <div className="stat-grid">
                   <div className="stat-box">

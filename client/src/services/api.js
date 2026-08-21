@@ -112,7 +112,19 @@ export async function parseVoiceTranscript(transcript) {
       return response.data;
     }
   } catch (err) {
-    console.warn('[API WARN] Voice parse endpoint offline. Using local emergency NLP parser.');
+    if (err.response && err.response.data && err.response.data.error === 'GEMINI_API_KEY_MISSING') {
+      return {
+        success: false,
+        error: 'GEMINI_API_KEY_MISSING',
+        message: err.response.data.message || 'Gemini API key is not configured in server .env file.'
+      };
+    }
+    console.warn('[API WARN] Voice parse endpoint error. Returning explicit error.');
+    return {
+      success: false,
+      error: 'VOICE_PARSE_ERROR',
+      message: 'Failed to process voice transcript. Please check backend API server.'
+    };
   }
 
   // Local NLP parser fallback
