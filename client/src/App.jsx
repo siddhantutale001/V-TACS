@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import LandingPage from './components/LandingPage';
-import { ClerkAuthPanel, ClerkWrapper } from './components/auth/ClerkUserAuth';
+import FirebaseAuthPanel from './components/auth/FirebaseAuthPanel';
 import PersonalDetailsModal from './components/auth/PersonalDetailsModal';
 import HospitalLoginModal from './components/auth/HospitalLoginModal';
 import ModernUserDashboard from './components/user/ModernUserDashboard';
@@ -61,7 +61,7 @@ export default function App() {
     setCurrentScreen('HOSPITAL_DASHBOARD');
   };
 
-  // User auth success handler
+  // User auth success handler (called from FirebaseAuthPanel)
   const handleAuthSuccess = (authDetails) => {
     setUserAuth(authDetails);
     const saved = localStorage.getItem('vtacs_user_profile');
@@ -149,15 +149,15 @@ export default function App() {
   };
 
   return (
-    <ClerkWrapper>
+    <>
       {/* 1. Landing Gateway Screen */}
       {currentScreen === 'LANDING' && (
         <LandingPage onSelectPortal={handleSelectPortal} />
       )}
 
-      {/* 2. Clerk User Authentication Gateway */}
+      {/* 2. Firebase User Authentication Gateway (Google, Phone OTP, Email) */}
       {currentScreen === 'USER_AUTH' && (
-        <ClerkAuthPanel 
+        <FirebaseAuthPanel 
           onAuthSuccess={handleAuthSuccess}
           onBackToLanding={() => setCurrentScreen('LANDING')}
         />
@@ -210,6 +210,6 @@ export default function App() {
           onBackToLanding={() => setCurrentScreen('LANDING')}
         />
       )}
-    </ClerkWrapper>
+    </>
   );
 }
