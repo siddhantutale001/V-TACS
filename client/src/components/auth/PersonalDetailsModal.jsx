@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function PersonalDetailsModal({ initialDetails, onSaveDetails, onDeleteAccount, isDeleting }) {
+export default function PersonalDetailsModal({ initialDetails, onSaveDetails, onDeleteAccount, isDeleting, onSkipOnboarding }) {
   const [formData, setFormData] = useState(initialDetails || {
     fullName: '',
     phone: '',
