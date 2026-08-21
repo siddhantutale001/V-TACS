@@ -4,39 +4,36 @@ import { useVoiceTriage } from '../hooks/useVoiceTriage';
 export default function VoiceTriagePanel({ onApplyParsedData, onParseVoiceTranscript }) {
   const [isParsing, setIsParsing] = useState(false);
   const [manualText, setManualText] = useState('');
+  const [apiKeyError, setApiKeyError] = useState('');
 
-    const [apiKeyError, setApiKeyError] = useState(null);
-
-    const handleParseText = async (textToParse) => {
-      const targetText = textToParse || manualText || transcript;
-      if (!targetText || !targetText.trim()) {
-        alert('Please enter or speak emergency symptoms first.');
+  const handleParseText = async (textToParse) => {
+    const targetText = textToParse || manualText || transcript;
+    if (!targetText || !targetText.trim()) {
+      alert('Please enter or speak emergency symptoms first.');
+      return;
+    }
+    setIsParsing(true);
+    setApiKeyError('');
+    try {
+      const parsedResult = await onParseVoiceTranscript(targetText);
+      if (parsedResult && parsedResult.error === 'GEMINI_API_KEY_MISSING') {
+        setApiKeyError(parsedResult.message || 'AI service key is missing in server configuration.');
         return;
       }
-      setIsParsing(true);
-      setApiKeyError(null);
-      try {
-        const parsedResult = await onParseVoiceTranscript(targetText);
-        if (parsedResult && parsedResult.error === 'GEMINI_API_KEY_MISSING') {
-          setApiKeyError(parsedResult.message || 'Gemini API key is missing in server .env file.');
-        } else if (parsedResult && parsedResult.data) {
-          onApplyParsedData(parsedResult.data);
-        } else if (parsedResult && !parsedResult.success) {
-          setApiKeyError(parsedResult.message || 'Failed to parse voice transcript.');
-        }
-      } catch (err) {
-        console.error('Voice parsing error:', err);
-        setApiKeyError('Server error while processing voice transcript.');
-      } finally {
-        setIsParsing(false);
+      if (parsedResult && parsedResult.data) {
+        onApplyParsedData(parsedResult.data);
       }
-    };
+    } catch (err) {
+      console.error('Voice parsing error:', err);
+    } finally {
+      setIsParsing(false);
+    }
+  };
 
   const {
     isListening,
     transcript,
     setTranscript,
-    status,
     errorMessage,
     startListening,
     stopListeningAndParse
@@ -49,44 +46,48 @@ export default function VoiceTriagePanel({ onApplyParsedData, onParseVoiceTransc
   };
 
   return (
-    <div style={{ background: '#FFFFFF', border: '2px solid #E2E8F0', borderRadius: '12px', padding: '16px' }}>
+    <div className="voice-triage-inner">
       
-      {/* Panel Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-        <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#0F172A' }}>
-          🎤 Conversational Voice Triage
-        </div>
-        <span className="badge-pill pill-ai">AI TRIAGE ENGINE</span>
-      </div>
-
-      {/* Mic Button Row */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+      {/* Mic Trigger - Massive Panic-Friendly Emergency Button */}
+      <div style={{ marginBottom: '16px' }}>
         {!isListening ? (
           <button 
             type="button"
-            className="modern-btn"
-            onClick={startListening} 
-            style={{ flex: 1, background: '#EF4444', color: '#FFF', padding: '10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', borderRadius: '8px' }}
+            className="emergency-pulse-btn mic-start-btn"
+            onClick={startListening}
           >
-            ▶ START MIC LISTENING
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+            <span>TAP TO SPEAK EMERGENCY SYMPTOMS & LOCATION</span>
           </button>
         ) : (
           <button 
             type="button"
-            className="modern-btn"
-            onClick={stopListeningAndParse} 
-            style={{ flex: 1, background: '#DC2626', color: '#FFF', padding: '10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', borderRadius: '8px' }}
+            className="emergency-pulse-btn mic-listening-btn"
+            onClick={stopListeningAndParse}
           >
-            ⏹ STOP & PARSE VOICE
+            <span className="listening-ping"></span>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="6" y="6" width="12" height="12" rx="2"/>
+            </svg>
+            <span>LISTENING NOW • TAP TO PROCESS VOICE</span>
           </button>
         )}
       </div>
 
-      {/* Clear Visible Voice Input Text Box */}
+      {/* Visible Emergency Input Box */}
       <div style={{ marginBottom: '14px' }}>
-        <label style={{ display: 'block', fontWeight: 'bold', fontSize: '12px', color: '#334155', marginBottom: '6px' }}>
-          💬 Emergency Voice Text Box (Type or Dictate Here):
-        </label>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+          <label style={{ fontWeight: '700', fontSize: '12px', color: '#1E293B', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Spoken / Dictated Emergency Transcript:
+          </label>
+          <span style={{ fontSize: '11px', color: '#64748B' }}>Editable / Keyboard Dictation</span>
+        </div>
         
         <textarea 
           value={manualText || transcript}
@@ -95,83 +96,78 @@ export default function VoiceTriagePanel({ onApplyParsedData, onParseVoiceTransc
             setTranscript(e.target.value);
           }}
           rows="3"
-          placeholder="Type or dictate emergency voice symptoms here (e.g. Cobra bite near Chakan market, swelling on leg and difficulty breathing)..."
-          style={{ 
-            width: '100%', 
-            padding: '10px', 
-            borderRadius: '8px', 
-            border: '2px solid #3B82F6', 
-            fontSize: '13px', 
-            fontFamily: 'sans-serif',
-            backgroundColor: '#F0F9FF',
-            color: '#1E293B',
-            outline: 'none',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-          }}
+          placeholder="E.g. Cobra bite near Chakan market 30 minutes ago, swelling on foot, victim feeling breathless..."
+          className="voice-input-textarea"
         />
 
         <button 
           type="button"
-          className="modern-btn"
+          className="action-parse-btn"
           onClick={() => handleParseText(manualText || transcript)} 
           disabled={isParsing}
-          style={{ 
-            width: '100%', 
-            marginTop: '8px', 
-            background: '#16A34A', 
-            color: '#FFFFFF', 
-            padding: '10px', 
-            fontSize: '12px', 
-            fontWeight: 'bold', 
-            borderRadius: '8px',
-            cursor: 'pointer'
-          }}
         >
-          {isParsing ? '⚡ Analyzing Emergency Payload...' : '⚡ PARSE EMERGENCY TEXT'}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+          <span>{isParsing ? 'ANALYZING EMERGENCY PAYLOAD...' : 'PARSE EMERGENCY TEXT & AUTO-FILL'}</span>
         </button>
       </div>
 
       {apiKeyError && (
-        <div style={{ backgroundColor: '#FEF2F2', color: '#991B1B', border: '2px solid #FCA5A5', padding: '10px 12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '8px', marginBottom: '14px', lineHeight: '1.4' }}>
-          ❌ <strong>AI Parsing Service Notice:</strong> {apiKeyError}
+        <div className="alert-error-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>{apiKeyError}</span>
         </div>
       )}
 
       {errorMessage && (
-        <div style={{ backgroundColor: '#FEF2F2', color: '#991B1B', border: '1px solid #FCA5A5', padding: '6px 10px', fontSize: '11px', borderRadius: '6px', marginBottom: '12px' }}>
-          ℹ️ {errorMessage}
+        <div className="alert-info-box">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284C7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span>{errorMessage}</span>
         </div>
       )}
 
-      {/* 1-Click Audio Presets */}
-      <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569', marginBottom: '6px' }}>
-        🔊 1-Click Emergency Voice Presets:
-      </div>
+      {/* 1-Click Quick Presets */}
+      <div>
+        <div style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+          1-Click Emergency Audio Presets (Instant Triage):
+        </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        <button 
-          type="button"
-          style={{ textAlign: 'left', padding: '8px 10px', fontSize: '11px', background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '6px', cursor: 'pointer' }}
-          onClick={() => applyPreset("Cobra bite at Chakan market yard 30 minutes ago, severe swelling and difficulty breathing")}
-        >
-          🔊 <strong>Preset 1: Chakan Market</strong> - Cobra bite, respiratory failure (Severe)
-        </button>
+        <div className="preset-btn-grid">
+          <button 
+            type="button"
+            className="preset-btn"
+            onClick={() => applyPreset("Cobra bite at Chakan market yard 30 minutes ago, severe swelling and difficulty breathing")}
+          >
+            <div className="preset-indicator red-indicator"></div>
+            <div>
+              <strong>Chakan Market Yard:</strong> Cobra bite, respiratory failure (High ASV Need)
+            </div>
+          </button>
 
-        <button 
-          type="button"
-          style={{ textAlign: 'left', padding: '8px 10px', fontSize: '11px', background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '6px', cursor: 'pointer' }}
-          onClick={() => applyPreset("Victim bitten on leg near Shirur highway 45 mins ago, drooping eyelids and slurred speech")}
-        >
-          🔊 <strong>Preset 2: Shirur Highway</strong> - Neurotoxic ptosis & slurred speech
-        </button>
+          <button 
+            type="button"
+            className="preset-btn"
+            onClick={() => applyPreset("Victim bitten on leg near Shirur highway 45 mins ago, drooping eyelids and slurred speech")}
+          >
+            <div className="preset-indicator amber-indicator"></div>
+            <div>
+              <strong>Shirur Highway:</strong> Neurotoxic ptosis & slurred speech (Ventilator Required)
+            </div>
+          </button>
 
-        <button 
-          type="button"
-          style={{ textAlign: 'left', padding: '8px 10px', fontSize: '11px', background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '6px', cursor: 'pointer' }}
-          onClick={() => applyPreset("Snakebite near Pimpri YCM hospital 15 mins ago, active bleeding from wound site")}
-        >
-          🔊 <strong>Preset 3: Pimpri</strong> - Hemotoxic active bleeding
-        </button>
+          <button 
+            type="button"
+            className="preset-btn"
+            onClick={() => applyPreset("Snakebite near Pimpri YCM hospital 15 mins ago, active bleeding from wound site")}
+          >
+            <div className="preset-indicator blue-indicator"></div>
+            <div>
+              <strong>Pimpri Town:</strong> Hemotoxic active bleeding & localized edema
+            </div>
+          </button>
+        </div>
       </div>
 
     </div>
