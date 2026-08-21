@@ -4,6 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS hospitals (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    facility_code VARCHAR(50) NOT NULL UNIQUE,
     name VARCHAR(255) NOT NULL,
     latitude DECIMAL(10, 7) NOT NULL,
     longitude DECIMAL(10, 7) NOT NULL,
@@ -18,6 +19,19 @@ CREATE TABLE IF NOT EXISTS hospitals (
     phone VARCHAR(50) NOT NULL,
     address VARCHAR(255) NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS hospital_officers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    hospital_id INT NOT NULL,
+    facility_code VARCHAR(50) NOT NULL,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    council_reg_number VARCHAR(100) NOT NULL UNIQUE,
+    officer_name VARCHAR(150) NOT NULL,
+    role ENUM('CHIEF_MEDICAL_OFFICER', 'EMERGENCY_DUTY_OFFICER', 'PHARMACY_AUDITOR') NOT NULL DEFAULT 'EMERGENCY_DUTY_OFFICER',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (hospital_id) REFERENCES hospitals(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS ambulances (
@@ -44,7 +58,7 @@ CREATE TABLE IF NOT EXISTS active_cases (
     bite_time DATETIME,
     assigned_hospital_id INT,
     assigned_ambulance_id INT,
-    estimated_eta INT, -- travel time in minutes
+    estimated_eta INT,
     asv_vials_reserved INT DEFAULT 10,
     status ENUM('triaged', 'dispatched', 'resolved', 'cancelled') NOT NULL DEFAULT 'triaged',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

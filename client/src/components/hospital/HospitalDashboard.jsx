@@ -5,9 +5,9 @@ import { fetchHospitals, fetchActiveCases, updateAsvStock } from '../../services
 export default function HospitalDashboard({ officerUser, onLogout, onBackToLanding }) {
   const [hospitals, setHospitals] = useState([]);
   const [activeCases, setActiveCases] = useState([]);
-  const [selectedHospital, setSelectedHospital] = useState(null);
+  const [myHospital, setMyHospital] = useState(null);
   
-  // Stock & Operational State
+  // Stock & Operational State for Authenticated Hospital
   const [editAsvCount, setEditAsvCount] = useState(0);
   const [editVentilator, setEditVentilator] = useState(true);
   const [editIsOpen, setEditIsOpen] = useState(true);
@@ -23,7 +23,7 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
     loadData();
     const interval = setInterval(loadData, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [officerUser]);
 
   const loadData = async () => {
     try {
@@ -32,19 +32,31 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
         fetchActiveCases().catch(() => null)
       ]);
 
-      if (hospRes && hospRes.data) {
-        setHospitals(hospRes.data);
-        if (hospRes.data.length > 0 && !selectedHospital) {
-          const myHospital = hospRes.data[0]; // Default Sassoon Apex
-          populateEditForm(myHospital);
-        }
+      let hospList = hospRes?.data || [];
+      if (hospList.length > 0) {
+        setHospitals(hospList);
+        // Find officer's assigned hospital by hospital_id or facility_code
+        const targetHospId = officerUser?.hospital_id || 1;
+        const targetFacCode = officerUser?.facility_code;
+
+        let matched = hospList.find(h => 
+          (targetFacCode && h.facility_code === targetFacCode) || 
+          h.id === targetHospId
+        ) || hospList[0];
+
+        setMyHospital(matched);
+        populateEditForm(matched);
       }
 
       if (caseRes && caseRes.data) {
         const previousCount = activeCases.length;
-        setActiveCases(caseRes.data);
-        if (caseRes.data.length > previousCount && previousCount > 0) {
-          setIncomingAlarmCase(caseRes.data[0]);
+        // Filter incoming cases routed specifically to THIS hospital
+        const targetHospId = officerUser?.hospital_id || 1;
+        const myCases = caseRes.data.filter(c => !c.assigned_hospital_id || c.assigned_hospital_id === targetHospId);
+
+        setActiveCases(myCases);
+        if (myCases.length > previousCount && previousCount > 0) {
+          setIncomingAlarmCase(myCases[0]);
         }
       }
     } catch (err) {
@@ -53,7 +65,6 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
   };
 
   const populateEditForm = (h) => {
-    setSelectedHospital(h);
     setEditAsvCount(h.current_asv_vials);
     setEditVentilator(Boolean(h.ventilator_available));
     setEditIsOpen(h.is_open !== undefined ? Boolean(h.is_open) : true);
@@ -61,28 +72,23 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
     setEditIs247(h.is_24_7 !== undefined ? Boolean(h.is_24_7) : true);
     setEditOpeningTime(h.opening_time ? h.opening_time.substring(0, 5) : '08:00');
     setEditClosingTime(h.closing_time ? h.closing_time.substring(0, 5) : '20:00');
-    setAuditMessage('');
-  };
-
-  const handleSelectHospitalForEdit = (h) => {
-    populateEditForm(h);
   };
 
   const handleUpdateStock = async (e) => {
     e.preventDefault();
-    if (!selectedHospital) return;
+    if (!myHospital) return;
     setIsUpdating(true);
     setAuditMessage('');
 
     try {
-      await updateAsvStock(selectedHospital.id, editAsvCount, editVentilator, 'demo-token', {
+      await updateAsvStock(myHospital.id, editAsvCount, editVentilator, 'scoped-officer-token', {
         is_open: editIsOpen,
         accepting_patients: editAcceptingPatients,
         is_24_7: editIs247,
         opening_time: editOpeningTime,
         closing_time: editClosingTime
       });
-      setAuditMessage(`✓ Operational status updated for ${selectedHospital.name}`);
+      setAuditMessage(`✓ ASV Stock & Bed status saved for ${myHospital.name}`);
       loadData();
     } catch (err) {
       console.error('Failed to update status:', err);
@@ -92,10 +98,10 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
     }
   };
 
-  // CSV Audit Export
+  // CSV Audit Export for this hospital
   const handleExportCSV = () => {
     if (activeCases.length === 0) {
-      alert('No active cases available to export.');
+      alert(`No active cases recorded for ${myHospital?.name || 'this facility'}.`);
       return;
     }
     const headers = ["Case ID", "Dispatch Time", "Location", "Symptoms", "Blood Group", "Medical History", "Emergency Contact", "ASV Reserved", "ETA Mins", "Status"];
@@ -116,7 +122,7 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `vtacs_audit_log_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `vtacs_${officerUser?.facility_code || 'audit'}_log_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -125,21 +131,24 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
   return (
     <div className="app-container">
       
-      {/* Utility Top Bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', background: '#000080', padding: '3px 6px', color: '#FFF' }}>
+      {/* Top Scoped Medical Officer Status Bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', background: '#000080', padding: '4px 8px', color: '#FFF' }}>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button style={{ fontSize: '10px', padding: '2px 6px', fontWeight: 'bold' }} onClick={onBackToLanding}>
+          <button style={{ fontSize: '10px', padding: '2px 6px', fontWeight: 'bold', cursor: 'pointer' }} onClick={onBackToLanding}>
             ← PORTAL GATEWAY
           </button>
-          <span style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: 'bold' }}>
+          <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 'bold' }}>
             HOSPITAL RESOURCE OPERATIONS & ASV AUDIT CENTER [NAPSE PROTOCOL]
           </span>
         </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#FFFF00' }}>
-            LOGGED IN: {officerUser?.name || 'Dr. Rajesh Patil (Medical Officer)'}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#86EFAC', fontWeight: 'bold' }}>
+            FACILITY: [{officerUser?.facility_code || 'HOSP-01'}] {officerUser?.hospital_name || myHospital?.name || 'Local Hospital'}
           </span>
-          <button className="danger" style={{ fontSize: '10px', padding: '2px 6px' }} onClick={onLogout}>
+          <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#FFFF00' }}>
+            OFFICER: {officerUser?.officer_name || officerUser?.name || 'Dr. Medical Officer'} ({officerUser?.council_reg_number || 'MMC Verified'})
+          </span>
+          <button className="danger" style={{ fontSize: '10px', padding: '2px 6px', cursor: 'pointer' }} onClick={onLogout}>
             LOGOUT
           </button>
         </div>
@@ -147,10 +156,10 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
 
       <Header user={officerUser} onOpenLogin={() => {}} />
 
-      {/* Main Hospital Operational Grid */}
-      <div className="dashboard-grid" style={{ gridTemplateColumns: '380px 1fr 340px' }}>
+      {/* Main Scoped Hospital Operational Grid */}
+      <div className="dashboard-grid" style={{ gridTemplateColumns: '400px 1fr 340px' }}>
         
-        {/* Left Column: Interactive ASV Stock Audit & Bed Capacity Update Form */}
+        {/* Left Column: Dedicated ASV Inventory Audit & Stock Control */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           
           <div className="win-panel">
@@ -158,104 +167,85 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
               💉 LIVE ASV INVENTORY AUDIT & STOCK CONTROL
             </div>
             <div className="win-panel-body">
-              {selectedHospital ? (
-                <form onSubmit={handleUpdateStock} style={{ background: '#FFF', border: '2px inset #808080', padding: '6px' }}>
-                  <div style={{ fontWeight: 'bold', fontSize: '12px', marginBottom: '4px', color: '#000080' }}>
-                    SELECTED FACILITY:
+              {myHospital ? (
+                <form onSubmit={handleUpdateStock} style={{ background: '#FFF', border: '2px inset #808080', padding: '8px' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '12px', marginBottom: '2px', color: '#000080' }}>
+                    AUTHENTICATED FACILITY:
                   </div>
-                  <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '2px' }}>
-                    {selectedHospital.name}
+                  <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#0F172A', marginBottom: '2px' }}>
+                    [{myHospital.facility_code || officerUser?.facility_code}] {myHospital.name}
                   </div>
-                  <div style={{ fontSize: '9px', color: '#666', marginBottom: '8px' }}>
-                    {selectedHospital.address}
+                  <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '10px' }}>
+                    {myHospital.address} • Tel: {myHospital.phone}
                   </div>
 
-                  {/* Critical Stockout Warning Banner */}
-                  {selectedHospital.current_asv_vials < 5 && (
+                  {/* Stockout Warning Banner */}
+                  {editAsvCount < 5 && (
                     <div style={{ backgroundColor: '#FEF2F2', border: '2px solid #EF4444', color: '#991B1B', padding: '6px', fontSize: '10px', fontWeight: 'bold', borderRadius: '4px', marginBottom: '8px' }}>
                       🚨 CRITICAL ASV STOCKOUT RISK (&lt; 5 VIALS REMAINING)
                     </div>
                   )}
 
-                  <div style={{ marginBottom: '8px' }}>
-                    <label style={{ display: 'block', fontWeight: 'bold', fontSize: '11px' }}>Current ASV Vials in Stock:</label>
+                  <div style={{ marginBottom: '10px' }}>
+                    <label style={{ display: 'block', fontWeight: 'bold', fontSize: '11px', marginBottom: '2px' }}>
+                      Current Verified ASV Vials in Cold Storage:
+                    </label>
                     <input 
                       type="number" 
-                      value={editAsvCount} 
-                      onChange={e => setEditAsvCount(parseInt(e.target.value, 10) || 0)} 
                       min="0" 
                       max="500" 
-                      style={{ width: '100%', padding: '4px', border: '2px inset #808080', fontFamily: 'monospace', fontSize: '12px', fontWeight: 'bold' }}
-                      required 
+                      value={editAsvCount} 
+                      onChange={e => setEditAsvCount(parseInt(e.target.value, 10) || 0)} 
+                      style={{ width: '100%', padding: '6px', fontSize: '14px', fontWeight: 'bold', fontFamily: 'monospace', border: '2px inset #808080', background: editAsvCount < 5 ? '#FEE2E2' : '#F0FDF4' }}
+                      required
                     />
                   </div>
 
-                  <div style={{ marginBottom: '6px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>
+                  <div style={{ marginBottom: '10px', padding: '6px', background: '#F8FAFC', border: '1px solid #CBD5E1' }}>
+                    <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', fontWeight: 'bold' }}>
                       <input 
                         type="checkbox" 
                         checked={editVentilator} 
                         onChange={e => setEditVentilator(e.target.checked)} 
+                        style={{ width: '16px', height: '16px' }}
                       />
-                      ICU VENTILATOR READY & OPERATIONAL
+                      <span>ICU Ventilator Bed Available for Neurotoxic Victims</span>
                     </label>
                   </div>
 
-                  {/* Operational Toggles */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px', borderTop: '1px solid #CBD5E1', paddingTop: '6px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px', color: editIsOpen ? '#16A34A' : '#DC2626' }}>
-                      <input 
-                        type="checkbox" 
-                        checked={editIsOpen} 
-                        onChange={e => setEditIsOpen(e.target.checked)} 
-                      />
-                      FACILITY OPERATIONAL STATUS ({editIsOpen ? 'OPEN' : 'CLOSED'})
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '10px' }}>
+                    <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontWeight: 'bold' }}>
+                      <input type="checkbox" checked={editIsOpen} onChange={e => setEditIsOpen(e.target.checked)} />
+                      <span>Facility Open</span>
                     </label>
-
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px', color: editAcceptingPatients ? '#16A34A' : '#DC2626' }}>
-                      <input 
-                        type="checkbox" 
-                        checked={editAcceptingPatients} 
-                        onChange={e => setEditAcceptingPatients(e.target.checked)} 
-                      />
-                      ACCEPTING EMERGENCY PATIENTS ({editAcceptingPatients ? 'YES' : 'NO - OVERCROWDED'})
+                    <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontWeight: 'bold' }}>
+                      <input type="checkbox" checked={editAcceptingPatients} onChange={e => setEditAcceptingPatients(e.target.checked)} />
+                      <span>Accepting Trauma</span>
                     </label>
+                  </div>
 
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>
-                      <input 
-                        type="checkbox" 
-                        checked={editIs247} 
-                        onChange={e => setEditIs247(e.target.checked)} 
-                      />
-                      OPEN 24 HOURS (24/7 EMERGENCY CARE)
+                  <div style={{ marginBottom: '10px', fontSize: '10px' }}>
+                    <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', marginBottom: '4px' }}>
+                      <input type="checkbox" checked={editIs247} onChange={e => setEditIs247(e.target.checked)} />
+                      <span>24/7 Emergency Casualty Operational</span>
                     </label>
 
                     {!editIs247 && (
-                      <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginTop: '4px' }}>
                         <div>
-                          <label style={{ fontSize: '9px', fontWeight: 'bold' }}>OPENING TIME</label>
-                          <input 
-                            type="time" 
-                            value={editOpeningTime} 
-                            onChange={e => setEditOpeningTime(e.target.value)}
-                            style={{ fontSize: '10px', padding: '2px' }}
-                          />
+                          <span style={{ fontSize: '9px', color: '#666' }}>Open:</span>
+                          <input type="time" value={editOpeningTime} onChange={e => setEditOpeningTime(e.target.value)} style={{ width: '100%', fontSize: '10px' }} />
                         </div>
                         <div>
-                          <label style={{ fontSize: '9px', fontWeight: 'bold' }}>CLOSING TIME</label>
-                          <input 
-                            type="time" 
-                            value={editClosingTime} 
-                            onChange={e => setEditClosingTime(e.target.value)}
-                            style={{ fontSize: '10px', padding: '2px' }}
-                          />
+                          <span style={{ fontSize: '9px', color: '#666' }}>Close:</span>
+                          <input type="time" value={editClosingTime} onChange={e => setEditClosingTime(e.target.value)} style={{ width: '100%', fontSize: '10px' }} />
                         </div>
                       </div>
                     )}
                   </div>
 
                   {auditMessage && (
-                    <div style={{ background: auditMessage.includes('✓') ? '#E6FFFA' : '#FFF5F5', color: auditMessage.includes('✓') ? '#234E52' : '#9B2C2C', padding: '4px', fontSize: '10px', fontFamily: 'monospace', marginBottom: '6px', border: '1px solid #808080' }}>
+                    <div style={{ background: '#F0FDF4', color: '#166534', border: '1px solid #86EFAC', padding: '4px 6px', fontSize: '10px', fontWeight: 'bold', marginBottom: '8px' }}>
                       {auditMessage}
                     </div>
                   )}
@@ -263,220 +253,154 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
                   <button 
                     type="submit" 
                     className="primary" 
-                    style={{ width: '100%', padding: '6px', fontSize: '11px', letterSpacing: '0.5px' }}
+                    style={{ width: '100%', padding: '8px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
                     disabled={isUpdating}
                   >
-                    {isUpdating ? 'SAVING AUDIT RECORD...' : '💾 SAVE & SYNC ASV STOCK RECORD'}
+                    {isUpdating ? 'SAVING AUDIT RECORD...' : '💾 SAVE & SYNC FACILITY ASV STOCK RECORD'}
                   </button>
                 </form>
               ) : (
-                <div style={{ padding: '10px', fontSize: '11px' }}>Select a hospital from table to audit stock.</div>
+                <div style={{ padding: '20px', textAlign: 'center', fontSize: '11px' }}>
+                  Loading facility telemetry...
+                </div>
               )}
             </div>
           </div>
 
+          {/* Quick Audit Export Action */}
           <div className="win-panel">
-            <div className="win-panel-title">🛏️ ICU & TRAUMA BED CAPACITY MONITOR</div>
-            <div className="win-panel-body" style={{ fontSize: '10px', fontFamily: 'monospace' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <span>TRAUMA ICU BEDS:</span>
-                <span className="badge badge-green">14 / 20 AVAILABLE</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <span>ICU VENTILATORS:</span>
-                <span className="badge badge-green">6 OPERATIONAL</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <span>ASV RE-ORDER THRESHOLD:</span>
-                <span className="badge badge-amber">&lt; 15 VIALS</span>
-              </div>
-              <div style={{ fontSize: '9px', color: '#666', borderTop: '1px solid #808080', paddingTop: '4px', marginTop: '4px' }}>
-                Automated NAPSE alert triggered when regional stock drops below 20 vials per district.
-              </div>
+            <div className="win-panel-title">📋 NAPSE COMPLIANCE & AUDIT EXPORT</div>
+            <div className="win-panel-body" style={{ padding: '6px' }}>
+              <button 
+                type="button" 
+                onClick={handleExportCSV}
+                style={{ width: '100%', padding: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', background: '#E2E8F0', border: '2px outset #FFF' }}
+              >
+                📥 EXPORT FACILITY DISPATCH AUDIT LOG (CSV)
+              </button>
             </div>
           </div>
 
         </div>
 
-        {/* Center Column: Incoming Victim Dispatch Tracker */}
+        {/* Center Column: Scoped Incoming Victim Patient Queue */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          
           <div className="win-panel" style={{ flex: 1 }}>
-            <div className="win-panel-title" style={{ display: 'flex', justifyContent: 'space-between', background: '#800000', color: '#FFF' }}>
-              <span>🚨 INCOMING VICTIM DISPATCH & PATIENT TRACKER</span>
-              <div style={{ display: 'flex', gap: '4px' }}>
-                <button style={{ fontSize: '9px', padding: '0px 4px', background: '#16A34A', color: '#FFF', fontWeight: 'bold' }} onClick={handleExportCSV}>
-                  📄 EXPORT AUDIT LOG (CSV)
-                </button>
-                <button style={{ fontSize: '9px', padding: '0px 4px' }} onClick={loadData}>REFRESH FEED</button>
-              </div>
+            <div className="win-panel-title" style={{ background: '#990000', color: '#FFF', display: 'flex', justifyContent: 'space-between' }}>
+              <span>🚨 INCOMING VICTIM DISPATCH QUEUE ({activeCases.length} ACTIVE)</span>
+              <span style={{ fontSize: '10px', background: '#FFF', color: '#990000', padding: '0 4px', fontWeight: 'bold' }}>
+                SCOPED TO {myHospital?.facility_code || 'THIS FACILITY'}
+              </span>
             </div>
-            <div className="win-panel-body" style={{ overflowX: 'auto' }}>
-              {activeCases.length === 0 ? (
-                <div style={{ padding: '20px', textAlign: 'center', fontFamily: 'monospace', color: '#808080' }}>
-                  No incoming envenoming dispatches currently active for this facility.
+
+            <div className="win-panel-body" style={{ maxHeight: '640px', overflowY: 'auto' }}>
+              {activeCases.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {activeCases.map((c) => (
+                    <div 
+                      key={c.id} 
+                      style={{ 
+                        background: '#FFF', 
+                        border: '2px solid #DC2626', 
+                        padding: '10px', 
+                        borderRadius: '4px',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', borderBottom: '1px solid #FCA5A5', paddingBottom: '4px' }}>
+                        <span style={{ fontWeight: 'bold', fontSize: '12px', color: '#991B1B' }}>
+                          🚨 CASE #{c.id} • EN ROUTE TO {myHospital?.name || 'YOUR FACILITY'}
+                        </span>
+                        <span style={{ background: '#DC2626', color: '#FFF', fontSize: '10px', padding: '2px 6px', fontWeight: 'bold', borderRadius: '3px' }}>
+                          ETA: {c.estimated_eta || '15-20'} MINS
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '8px', fontSize: '11px', marginBottom: '6px' }}>
+                        <div>
+                          <strong>Victim Location:</strong> {c.location_description || `Lat: ${c.victim_lat}, Lon: ${c.victim_lon}`}<br/>
+                          <strong>Symptoms:</strong> <span style={{ color: '#991B1B' }}>{c.symptoms}</span><br/>
+                          <strong>Medical History / Allergies:</strong> {c.victim_medical_history || 'None reported'}
+                        </div>
+                        <div style={{ background: '#FEF2F2', padding: '6px', border: '1px solid #FECACA', borderRadius: '4px' }}>
+                          💉 <strong>ASV Reserved:</strong> {c.asv_vials_reserved || 10} Vials<br/>
+                          🩸 <strong>Blood Group:</strong> {c.victim_blood_group || 'O+'}<br/>
+                          📞 <strong>Emergency Contact:</strong> {c.victim_emergency_contact || 'None'}
+                        </div>
+                      </div>
+
+                      <div style={{ background: '#FEF3C7', padding: '4px 8px', fontSize: '10px', color: '#92400E', fontWeight: 'bold', borderRadius: '3px' }}>
+                        🚑 Ambulance Assigned: {c.assigned_ambulance_number || '108 Rapid Unit'}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : (
-                <table className="win-table">
-                  <thead>
-                    <tr>
-                      <th>CASE #</th>
-                      <th>DISPATCH TIME</th>
-                      <th>VICTIM LOCATION</th>
-                      <th>SYMPTOMS / SEVERITY</th>
-                      <th>ASV RESERVED</th>
-                      <th>AMBULANCE & DRIVER</th>
-                      <th>ETA</th>
-                      <th>STATUS</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activeCases.map((c) => (
-                      <tr key={c.id}>
-                        <td><strong>#{c.id}</strong></td>
-                        <td>{new Date(c.created_at || c.bite_time).toLocaleTimeString()}</td>
-                        <td>
-                          <strong>{c.location_description || `${c.victim_lat}, ${c.victim_lon}`}</strong>
-                        </td>
-                        <td>
-                          <span style={{ fontSize: '10px' }}>{c.symptoms}</span>
-                        </td>
-                        <td>
-                          <span className="badge badge-amber">{c.asv_vials_reserved || 10} VIALS</span>
-                        </td>
-                        <td>
-                          <strong>{c.assigned_ambulance_number || 'MH-12-EM-1081'}</strong>
-                        </td>
-                        <td>
-                          <span className="badge badge-red">{c.estimated_eta || 20} MIN</span>
-                        </td>
-                        <td>
-                          <span className="badge badge-green">INCOMING</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: '#64748B' }}>
+                  <div style={{ fontSize: '28px', marginBottom: '8px' }}>🏥</div>
+                  <strong>No Incoming Patient Dispatches En Route</strong><br/>
+                  <span style={{ fontSize: '11px' }}>Casualty triage queue is currently clear for {myHospital?.name || 'this facility'}.</span>
+                </div>
               )}
             </div>
           </div>
+
         </div>
 
-        {/* Right Column: Regional ASV Audit Monitor (Nearby Facilities) */}
+        {/* Right Column: Read-Only Regional Stock Matrix for Contingency */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <div className="win-panel" style={{ flex: 1 }}>
-            <div className="win-panel-title">🌐 REGIONAL ASV AUDIT & NEARBY HOSPITALS</div>
-            <div className="win-panel-body" style={{ overflowX: 'auto' }}>
-              <table className="win-table">
-                <thead>
-                  <tr>
-                    <th>HOSPITAL</th>
-                    <th>ASV VIALS</th>
-                    <th>VENTILATOR</th>
-                    <th>AUDIT</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {hospitals.map((h) => {
-                    const isSelected = selectedHospital && selectedHospital.id === h.id;
-                    return (
-                      <tr key={h.id} className={isSelected ? 'selected' : ''}>
-                        <td>
-                          <strong>{h.name}</strong>
-                          <div style={{ fontSize: '8px', opacity: 0.8 }}>{h.phone}</div>
-                        </td>
-                        <td>
-                          <span className={`badge ${h.current_asv_vials > 15 ? 'badge-green' : (h.current_asv_vials > 0 ? 'badge-amber' : 'badge-red')}`}>
-                            {h.current_asv_vials} VIALS
+          
+          <div className="win-panel">
+            <div className="win-panel-title">🌐 REGIONAL NETWORK ASV STOCKS (READ-ONLY)</div>
+            <div className="win-panel-body" style={{ maxHeight: '640px', overflowY: 'auto' }}>
+              <div style={{ fontSize: '10px', color: '#475569', marginBottom: '6px', fontStyle: 'italic' }}>
+                For inter-hospital emergency stock transfer coordination:
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {hospitals.map(h => {
+                  const isMyFacility = h.id === myHospital?.id;
+                  return (
+                    <div 
+                      key={h.id}
+                      style={{
+                        padding: '6px 8px',
+                        background: isMyFacility ? '#DCFCE7' : '#FFFFFF',
+                        border: isMyFacility ? '2px solid #16A34A' : '1px solid #CBD5E1',
+                        borderRadius: '4px',
+                        fontSize: '11px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                        <strong style={{ color: isMyFacility ? '#166534' : '#0F172A' }}>
+                          [{h.facility_code || `HOSP-0${h.id}`}] {h.name}
+                        </strong>
+                        {isMyFacility && (
+                          <span style={{ fontSize: '9px', background: '#16A34A', color: '#FFF', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold' }}>
+                            THIS FACILITY
                           </span>
-                        </td>
-                        <td>
-                          {h.ventilator_available ? (
-                            <span className="badge badge-green">READY</span>
-                          ) : (
-                            <span className="badge badge-red">NONE</span>
-                          )}
-                        </td>
-                        <td>
-                          <button 
-                            style={{ fontSize: '9px', padding: '1px 4px' }} 
-                            onClick={() => handleSelectHospitalForEdit(h)}
-                          >
-                            SELECT
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#475569' }}>
+                        <span>💉 ASV Stock: <strong>{h.current_asv_vials} vials</strong></span>
+                        <span>🫁 ICU Ventilator: <strong>{h.ventilator_available ? 'YES' : 'NO'}</strong></span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
+
         </div>
 
       </div>
 
-      {/* Incoming Patient Emergency Alarm Modal */}
-      {incomingAlarmCase && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.75)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999
-        }}>
-          <div style={{
-            backgroundColor: '#FFFFFF',
-            border: '4px solid #DC2626',
-            borderRadius: '12px',
-            padding: '24px',
-            maxWidth: '480px',
-            width: '90%',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-            textAlign: 'center'
-          }}>
-            <div style={{ fontSize: '48px', marginBottom: '8px', animation: 'bounce 1s infinite' }}>🚨</div>
-            <h2 style={{ color: '#DC2626', margin: '0 0 10px 0', fontSize: '20px', fontWeight: 'bold' }}>
-              NEW INCOMING ENVENOMING VICTIM!
-            </h2>
-            <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', padding: '12px', borderRadius: '8px', marginBottom: '16px', textAlign: 'left', fontSize: '13px' }}>
-              <div><strong>Case ID:</strong> #{incomingAlarmCase.id}</div>
-              <div><strong>Location:</strong> {incomingAlarmCase.location_description || `${incomingAlarmCase.victim_lat}, ${incomingAlarmCase.victim_lon}`}</div>
-              <div><strong>Symptoms:</strong> {incomingAlarmCase.symptoms}</div>
-              <div><strong>ASV Reserved:</strong> <span style={{ color: '#DC2626', fontWeight: 'bold' }}>{incomingAlarmCase.asv_vials_reserved || 10} Vials</span></div>
-              <div><strong>ETA to Hospital:</strong> <span style={{ color: '#DC2626', fontWeight: 'bold' }}>{incomingAlarmCase.estimated_eta || 20} Minutes</span></div>
-              {incomingAlarmCase.victim_blood_group && <div><strong>Blood Group:</strong> {incomingAlarmCase.victim_blood_group}</div>}
-              {incomingAlarmCase.victim_medical_history && <div><strong>Medical History:</strong> {incomingAlarmCase.victim_medical_history}</div>}
-            </div>
-
-            <button 
-              type="button"
-              style={{
-                backgroundColor: '#16A34A',
-                color: '#FFFFFF',
-                border: 'none',
-                padding: '12px 24px',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                width: '100%'
-              }}
-              onClick={() => setIncomingAlarmCase(null)}
-            >
-              ✅ ACKNOWLEDGE & PREPARE ICU RESUSCITATION BAY
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Retro Utility Footer Bar */}
       <footer className="hosp-footer">
         <span>STATUS: MEDICAL OFFICER AUTHORIZED</span>
+        <span>SCOPED FACILITY: {myHospital?.facility_code || 'HOSP-01'}</span>
         <span>CENTRAL DATABASE SYNC: ACTIVE</span>
         <span>HELPLINE: 15400</span>
       </footer>
