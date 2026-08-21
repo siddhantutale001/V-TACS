@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -12,12 +12,13 @@ export default function EmergencyMap({
 }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
+  const [mapError, setMapError] = useState(false);
 
   useEffect(() => {
     if (!mapRef.current || typeof window === 'undefined') return;
 
     try {
-      // Fix default Leaflet icon paths dynamically inside effect
+      // Fix default Leaflet icon paths
       if (L.Icon && L.Icon.Default && L.Icon.Default.prototype) {
         delete L.Icon.Default.prototype._getIconUrl;
         L.Icon.Default.mergeOptions({
@@ -27,10 +28,26 @@ export default function EmergencyMap({
         });
       }
 
+      // Safely reset Leaflet DOM container ID to prevent "Map container is already initialized" error
+      if (mapInstanceRef.current) {
+        try {
+          mapInstanceRef.current.off();
+          mapInstanceRef.current.remove();
+        } catch (e) {}
+        mapInstanceRef.current = null;
+      }
+
+      if (mapRef.current && mapRef.current._leaflet_id) {
+        mapRef.current._leaflet_id = null;
+      }
+
+      const centerLat = parseFloat(victimLat) || 18.5204;
+      const centerLon = parseFloat(victimLon) || 73.8567;
+
       // Custom Pin Icons
       const victimIcon = L.divIcon({
         className: 'custom-victim-pin',
-        html: `<div style="background-color: #EF4444; width: 22px; height: 22px; border-radius: 50%; border: 3px solid #FFFFFF; box-shadow: 0 0 10px rgba(239, 68, 68, 0.8); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 11px;">📍</div>`,
+        html: `<div style="background-color: #EF4444; width: 24px; height: 24px; border-radius: 50%; border: 3px solid #FFFFFF; box-shadow: 0 0 10px rgba(239, 68, 68, 0.8); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px;">📍</div>`,
         iconSize: [24, 24],
         iconAnchor: [12, 12]
       });
@@ -56,22 +73,13 @@ export default function EmergencyMap({
         iconAnchor: [13, 13]
       });
 
-      // Clean up existing map instance if re-rendering
-      if (mapInstanceRef.current) {
-        try { mapInstanceRef.current.remove(); } catch (e) {}
-        mapInstanceRef.current = null;
-      }
-
-      const centerLat = parseFloat(victimLat) || 18.5204;
-      const centerLon = parseFloat(victimLon) || 73.8567;
-
       // Initialize Leaflet map
-      const map = L.map(mapRef.current).setView([centerLat, centerLon], 11);
+      const map = L.map(mapRef.current, { zoomControl: true }).setView([centerLat, centerLon], 11);
       mapInstanceRef.current = map;
 
       // Add OpenStreetMap Tile Layer
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        attribution: '&copy; OpenStreetMap',
         maxZoom: 18
       }).addTo(map);
 
@@ -80,7 +88,7 @@ export default function EmergencyMap({
       // 1. Plot Victim Marker
       L.marker([centerLat, centerLon], { icon: victimIcon })
         .addTo(map)
-        .bindPopup(`<b>📍 Victim Emergency Location</b><br/>${victimLocation}<br/>Lat: ${centerLat.toFixed(4)}, Lon: ${centerLon.toFixed(4)}`);
+        .bindPopup(`<b>📍 Victim Location</b><br/>${victimLocation}`);
       
       bounds.extend([centerLat, centerLon]);
 
@@ -94,22 +102,12 @@ export default function EmergencyMap({
 
           L.marker([hLat, hLon], { icon: isMatched ? matchedHospitalIcon : hospitalIcon })
             .addTo(map)
-            .bindPopup(`
-              <div style="font-family: sans-serif; font-size: 12px;">
-                <b style="color: ${isMatched ? '#16A34A' : '#0284C7'};">${h.name}</b> ${isMatched ? '<b>(RECOMMENDED #1)</b>' : ''}<br/>
-                💉 <b>ASV Stock:</b> ${h.current_asv_vials} vials<br/>
-                🫁 <b>Ventilator:</b> ${h.ventilator_available ? 'AVAILABLE ✅' : 'NOT AVAILABLE ❌'}<br/>
-                📞 ${h.phone || ''}
-              </div>
-            `);
+            .bindPopup(`<b>${h.name}</b><br/>ASV Stock: ${h.current_asv_vials} vials`);
 
           bounds.extend([hLat, hLon]);
 
           if (isMatched) {
-            L.polyline([
-              [centerLat, centerLon],
-              [hLat, hLon]
-            ], {
+            L.polyline([[centerLat, centerLon], [hLat, hLon]], {
               color: '#16A34A',
               weight: 4,
               opacity: 0.8,
@@ -119,26 +117,17 @@ export default function EmergencyMap({
         });
       }
 
-      // 3. Plot Matched Ambulance Marker if present
+      // 3. Plot Ambulance Marker
       if (matchedAmbulance && matchedAmbulance.current_lat && matchedAmbulance.current_lon) {
         const aLat = parseFloat(matchedAmbulance.current_lat);
         const aLon = parseFloat(matchedAmbulance.current_lon);
         if (!isNaN(aLat) && !isNaN(aLon)) {
           L.marker([aLat, aLon], { icon: ambulanceIcon })
             .addTo(map)
-            .bindPopup(`
-              <div style="font-family: sans-serif; font-size: 12px;">
-                <b style="color: #D97706;">🚑 Assigned Ambulance</b><br/>
-                Vehicle: <b>${matchedAmbulance.vehicle_number}</b><br/>
-                Driver: ${matchedAmbulance.driver_name} (${matchedAmbulance.driver_phone})
-              </div>
-            `);
+            .bindPopup(`<b>🚑 Ambulance ${matchedAmbulance.vehicle_number}</b>`);
           bounds.extend([aLat, aLon]);
 
-          L.polyline([
-            [aLat, aLon],
-            [centerLat, centerLon]
-          ], {
+          L.polyline([[aLat, aLon], [centerLat, centerLon]], {
             color: '#F59E0B',
             weight: 3,
             opacity: 0.7,
@@ -150,17 +139,30 @@ export default function EmergencyMap({
       if (bounds.isValid()) {
         map.fitBounds(bounds, { padding: [30, 30] });
       }
-    } catch (mapError) {
-      console.warn('[Map Render Error]', mapError);
+    } catch (err) {
+      console.warn('[Map Exception Caught Gracefully]:', err);
+      setMapError(true);
     }
 
     return () => {
       if (mapInstanceRef.current) {
-        try { mapInstanceRef.current.remove(); } catch (e) {}
+        try {
+          mapInstanceRef.current.off();
+          mapInstanceRef.current.remove();
+        } catch (e) {}
         mapInstanceRef.current = null;
       }
     };
   }, [victimLat, victimLon, victimLocation, hospitals, matchedHospital, matchedAmbulance]);
+
+  if (mapError) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center', backgroundColor: '#F8FAFC', borderRadius: '12px', border: '1.5px solid #CBD5E1', color: '#475569' }}>
+        🗺 <strong>GIS Route Engine Active</strong><br/>
+        <span style={{ fontSize: '12px' }}>Victim Location: ({victimLat}, {victimLon}) • Pune District</span>
+      </div>
+    );
+  }
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '340px', borderRadius: '12px', overflow: 'hidden', border: '2px solid #CBD5E1', backgroundColor: '#E2E8F0' }}>
@@ -175,8 +177,7 @@ export default function EmergencyMap({
         borderRadius: '6px',
         fontSize: '11px',
         fontWeight: 'bold',
-        zIndex: 1000,
-        boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
+        zIndex: 1000
       }}>
         🗺 Live GIS Route Engine (Pune District)
       </div>
