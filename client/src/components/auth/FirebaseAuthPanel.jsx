@@ -26,29 +26,11 @@ export default function FirebaseAuthPanel({ onAuthSuccess, onBackToLanding }) {
   const [error, setError] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
 
-  // Setup Invisible Recaptcha for Phone Auth
-  useEffect(() => {
-    if (isFirebaseConfigured && auth && !window.recaptchaVerifier) {
-      try {
-        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible',
-          callback: () => {},
-          'expired-callback': () => {
-            setError('reCAPTCHA expired. Please try sending OTP again.');
-          }
-        });
-      } catch (err) {
-        console.warn('Recaptcha init warning:', err);
-      }
-    }
-  }, []);
-
   // 1. Google Popup Login
   const handleGoogleLogin = async () => {
     setError('');
     setStatusMessage('');
     if (!isFirebaseConfigured || !auth || !googleProvider) {
-      // Demo fallback login if Firebase is not configured yet
       onAuthSuccess({
         id: 'demo_google_123',
         email: 'citizen.victim@gmail.com',
@@ -67,7 +49,11 @@ export default function FirebaseAuthPanel({ onAuthSuccess, onBackToLanding }) {
       });
     } catch (err) {
       console.error('Google Sign-In Error:', err);
-      setError(err.message || 'Google sign-in failed.');
+      if (err.code === 'auth/unauthorized-domain' || err.message?.includes('unauthorized-domain')) {
+        setError(`Domain Unauthorized: Please add '${window.location.hostname}' to Firebase Console -> Authentication -> Settings -> Authorized domains.`);
+      } else {
+        setError(err.message || 'Google sign-in failed.');
+      }
     }
   };
 
@@ -83,7 +69,7 @@ export default function FirebaseAuthPanel({ onAuthSuccess, onBackToLanding }) {
     }
 
     if (!isFirebaseConfigured || !auth) {
-      // Demo fallback phone verification
+      // Demo fallback mode
       setStatusMessage('Demo Mode: OTP sent! Enter 123456 to verify.');
       setConfirmationResult({
         confirm: async (code) => {
@@ -98,13 +84,29 @@ export default function FirebaseAuthPanel({ onAuthSuccess, onBackToLanding }) {
 
     setIsSendingOtp(true);
     try {
+      // Clear previous verifier if exists
+      if (window.recaptchaVerifier) {
+        try { window.recaptchaVerifier.clear(); } catch (cErr) {}
+        window.recaptchaVerifier = null;
+      }
+
+      // Initialize RecaptchaVerifier dynamically
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+        callback: () => {}
+      });
+
       const appVerifier = window.recaptchaVerifier;
       const result = await signInWithPhoneNumber(auth, phone, appVerifier);
       setConfirmationResult(result);
       setStatusMessage(`✓ SMS OTP sent to ${phone}. Please enter the 6-digit code.`);
     } catch (err) {
       console.error('Phone OTP Error:', err);
-      setError(err.message || 'Failed to send SMS OTP. Verify phone number and Firebase config.');
+      if (err.code === 'auth/unauthorized-domain') {
+        setError(`Domain Unauthorized: Add '${window.location.hostname}' in Firebase Console -> Auth -> Settings -> Authorized domains.`);
+      } else {
+        setError(err.message || 'Failed to send SMS OTP. Please check phone format and try again.');
+      }
     } finally {
       setIsSendingOtp(false);
     }
@@ -130,8 +132,8 @@ export default function FirebaseAuthPanel({ onAuthSuccess, onBackToLanding }) {
       const user = result.user;
       onAuthSuccess({
         id: user.uid,
-        email: `${user.phoneNumber}@phone.user`,
-        name: `Citizen (${user.phoneNumber})`
+        email: `${user.phoneNumber || 'phone'}@phone.user`,
+        name: `Citizen (${user.phoneNumber || phone})`
       });
     } catch (err) {
       console.error('OTP Verification Error:', err);
@@ -172,7 +174,7 @@ export default function FirebaseAuthPanel({ onAuthSuccess, onBackToLanding }) {
       const user = result.user;
       onAuthSuccess({
         id: user.uid,
-        email: user.email,
+        email: user.email || email,
         name: user.email ? user.email.split('@')[0] : 'Citizen'
       });
     } catch (err) {

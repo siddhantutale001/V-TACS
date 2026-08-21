@@ -5,7 +5,7 @@ import EmergencyMap from '../map/EmergencyMap';
 
 export default function ModernUserDashboard({ 
   userAuth, 
-  userProfile, 
+  userProfile: rawUserProfile, 
   onSaveProfile, 
   onDeleteAccount, 
   onLogout, 
@@ -18,6 +18,14 @@ export default function ModernUserDashboard({
   isLoading,
   isDispatching
 }) {
+  const userProfile = rawUserProfile || {
+    fullName: userAuth?.name || 'Emergency Victim',
+    phone: 'Not Set',
+    emergencyContactName: 'Kin Name Not Set',
+    emergencyContactPhone: 'Not Set',
+    bloodGroup: 'O+',
+    medicalConditions: 'None'
+  };
   const [formData, setFormData] = useState({
     victim_lat: '18.7617',
     victim_lon: '73.8587',
