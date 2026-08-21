@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Component } from 'react';
 import LandingPage from './components/LandingPage';
 import FirebaseAuthPanel from './components/auth/FirebaseAuthPanel';
 import PersonalDetailsModal from './components/auth/PersonalDetailsModal';
@@ -10,6 +10,42 @@ import {
   parseVoiceTranscript, 
   executeDispatch 
 } from './services/api';
+
+// Safety Error Boundary to prevent blank screen crashes
+class DashboardErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('[Dashboard Error Boundary Caught Error]:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '40px', textAlign: 'center', background: '#FFFFFF', borderRadius: '16px', margin: '40px auto', maxWidth: '600px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
+          <h2 style={{ color: '#E63946' }}>⚠️ Dashboard Render Notice</h2>
+          <p style={{ fontSize: '13px', color: '#64748B' }}>
+            A rendering exception occurred, but your login session and triage payload are safe.
+          </p>
+          <button 
+            onClick={() => { this.setState({ hasError: false }); window.location.reload(); }}
+            style={{ padding: '10px 20px', background: '#2563EB', color: '#FFF', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+          >
+            🔄 RELOAD DASHBOARD
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function App() {
   // Screens: LANDING, USER_AUTH, USER_DASHBOARD, HOSPITAL_LOGIN, HOSPITAL_DASHBOARD
@@ -149,7 +185,7 @@ export default function App() {
   };
 
   return (
-    <>
+    <DashboardErrorBoundary>
       {/* 1. Landing Gateway Screen */}
       {currentScreen === 'LANDING' && (
         <LandingPage onSelectPortal={handleSelectPortal} />
@@ -191,11 +227,10 @@ export default function App() {
           />
 
           {/* Mandatory onboarding modal if user has not completed details */}
-          {(showMandatoryOnboarding && !userProfile) && (
+          {(showMandatoryOnboarding || !userProfile) && (
             <PersonalDetailsModal 
               initialDetails={userProfile}
               onSaveDetails={handleSaveProfile}
-              onSkipOnboarding={() => setShowMandatoryOnboarding(false)}
               onDeleteAccount={handleDeleteAccount}
               isDeleting={isDeletingAccount}
             />
@@ -211,6 +246,6 @@ export default function App() {
           onBackToLanding={() => setCurrentScreen('LANDING')}
         />
       )}
-    </>
+    </DashboardErrorBoundary>
   );
 }
