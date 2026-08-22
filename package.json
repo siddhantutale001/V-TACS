@@ -8,6 +8,7 @@
     "start": "node server/index.js"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
     "axios": "^1.7.2",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
@@ -16,6 +17,6 @@
     "express-rate-limit": "^7.3.1",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
-    "mysql2": "^3.10.1"
+    "mysql2": "^3.10.2"
   }
 }
