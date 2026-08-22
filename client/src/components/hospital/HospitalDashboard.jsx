@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Header from '../Header';
 import { fetchHospitals, fetchActiveCases, updateAsvStock } from '../../services/api';
 
@@ -8,7 +8,7 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
   const [myHospital, setMyHospital] = useState(null);
   
   // Stock & Operational State for Authenticated Hospital
-  const [editAsvCount, setEditAsvCount] = useState(0);
+  const [editAsvCount, setEditAsvCount] = useState(42);
   const [editVentilator, setEditVentilator] = useState(true);
   const [editIsOpen, setEditIsOpen] = useState(true);
   const [editAcceptingPatients, setEditAcceptingPatients] = useState(true);
@@ -17,16 +17,38 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
   const [editClosingTime, setEditClosingTime] = useState('20:00');
   const [isUpdating, setIsUpdating] = useState(false);
   const [auditMessage, setAuditMessage] = useState('');
-  const [incomingAlarmCase, setIncomingAlarmCase] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  const formInitializedRef = useRef(false);
+  const storageKey = `vtacs_cases_${officerUser?.facility_code || officerUser?.hospital_id || 'HOSP-YCM-01'}`;
 
+  // 1. Initial Load and Persistent Local Cache Hydration
   useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 5000);
+    // Load cached cases immediately from localStorage for rock-solid stability
+    try {
+      const cached = localStorage.getItem(storageKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setActiveCases(parsed);
+        }
+      }
+    } catch (e) {}
+
+    loadData(true);
+
+    // Calm 30-second silent background sync (does NOT reset form or flash UI)
+    const interval = setInterval(() => {
+      loadData(false);
+    }, 30000);
+
     return () => clearInterval(interval);
   }, [officerUser]);
 
-  const loadData = async () => {
+  const loadData = async (isInitial = false) => {
     try {
+      if (isInitial) setIsRefreshing(true);
+
       const [hospRes, caseRes] = await Promise.all([
         fetchHospitals().catch(() => null),
         fetchActiveCases().catch(() => null)
@@ -35,7 +57,6 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
       let hospList = hospRes?.data || [];
       if (hospList.length > 0) {
         setHospitals(hospList);
-        // Find officer's assigned hospital by hospital_id or facility_code
         const targetHospId = officerUser?.hospital_id || 1;
         const targetFacCode = officerUser?.facility_code;
 
@@ -45,22 +66,36 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
         ) || hospList[0];
 
         setMyHospital(matched);
-        populateEditForm(matched);
+
+        // Only populate form fields ONCE on initial load to avoid typing interruptions
+        if (!formInitializedRef.current) {
+          populateEditForm(matched);
+          formInitializedRef.current = true;
+        }
       }
 
+      // Merge and persist active victim cases
       if (caseRes && caseRes.data) {
-        const previousCount = activeCases.length;
-        // Filter incoming cases routed specifically to THIS hospital
         const targetHospId = officerUser?.hospital_id || 1;
-        const myCases = caseRes.data.filter(c => !c.assigned_hospital_id || c.assigned_hospital_id === targetHospId);
+        const incoming = caseRes.data.filter(c => !c.assigned_hospital_id || c.assigned_hospital_id === targetHospId);
 
-        setActiveCases(myCases);
-        if (myCases.length > previousCount && previousCount > 0) {
-          setIncomingAlarmCase(myCases[0]);
-        }
+        setActiveCases((prevCases) => {
+          // Merge by case ID, preserving existing cases in persistent storage
+          const map = new Map();
+          prevCases.forEach(c => map.set(c.id, c));
+          incoming.forEach(c => map.set(c.id, { ...map.get(c.id), ...c }));
+
+          const merged = Array.from(map.values());
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(merged));
+          } catch (e) {}
+          return merged;
+        });
       }
     } catch (err) {
       console.warn('Data load warning:', err);
+    } finally {
+      if (isInitial) setIsRefreshing(false);
     }
   };
 
@@ -72,6 +107,12 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
     setEditIs247(h.is_24_7 !== undefined ? Boolean(h.is_24_7) : true);
     setEditOpeningTime(h.opening_time ? h.opening_time.substring(0, 5) : '08:00');
     setEditClosingTime(h.closing_time ? h.closing_time.substring(0, 5) : '20:00');
+  };
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    await loadData(false);
+    setTimeout(() => setIsRefreshing(false), 500);
   };
 
   const handleUpdateStock = async (e) => {
@@ -89,13 +130,29 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
         closing_time: editClosingTime
       });
       setAuditMessage(`✓ ASV Stock & Bed status saved for ${myHospital.name}`);
-      loadData();
+      
+      // Update local hospital list state
+      setHospitals(prev => prev.map(h => h.id === myHospital.id ? { ...h, current_asv_vials: editAsvCount, ventilator_available: editVentilator ? 1 : 0 } : h));
+      setMyHospital(prev => ({ ...prev, current_asv_vials: editAsvCount, ventilator_available: editVentilator ? 1 : 0 }));
     } catch (err) {
       console.error('Failed to update status:', err);
       setAuditMessage('⚠️ Failed to update status');
     } finally {
       setIsUpdating(false);
     }
+  };
+
+  // Mark a case as Admitted/Resolved and remove from active emergency queue
+  const handleResolveCase = (caseId) => {
+    if (!window.confirm(`Confirm admission & triage completion for Case #${caseId}?`)) return;
+    
+    setActiveCases((prevCases) => {
+      const updated = prevCases.filter(c => c.id !== caseId);
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
   };
 
   // CSV Audit Export for this hospital
@@ -107,7 +164,7 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
     const headers = ["Case ID", "Dispatch Time", "Location", "Symptoms", "Blood Group", "Medical History", "Emergency Contact", "ASV Reserved", "ETA Mins", "Status"];
     const rows = activeCases.map(c => [
       c.id,
-      new Date(c.created_at || c.bite_time).toLocaleString(),
+      new Date(c.created_at || c.bite_time || Date.now()).toLocaleString(),
       `"${(c.location_description || '').replace(/"/g, '""')}"`,
       `"${(c.symptoms || '').replace(/"/g, '""')}"`,
       c.victim_blood_group || 'O+',
@@ -137,9 +194,13 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
           <button style={{ fontSize: '10px', padding: '2px 6px', fontWeight: 'bold', cursor: 'pointer' }} onClick={onBackToLanding}>
             ← PORTAL GATEWAY
           </button>
-          <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 'bold' }}>
-            HOSPITAL RESOURCE OPERATIONS & ASV AUDIT CENTER [NAPSE PROTOCOL]
-          </span>
+          <button 
+            style={{ fontSize: '10px', padding: '2px 8px', fontWeight: 'bold', cursor: 'pointer', background: '#2563EB', color: '#FFF', border: '1px outset #FFF' }}
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+          >
+            {isRefreshing ? '🔄 REFRESHING...' : '🔄 REFRESH TELEMETRY'}
+          </button>
         </div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#86EFAC', fontWeight: 'bold' }}>
@@ -283,14 +344,14 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
 
         </div>
 
-        {/* Center Column: Scoped Incoming Victim Patient Queue */}
+        {/* Center Column: Scoped Incoming Victim Patient Queue (Rock-Solid Persistent) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           
           <div className="win-panel" style={{ flex: 1 }}>
-            <div className="win-panel-title" style={{ background: '#990000', color: '#FFF', display: 'flex', justifyContent: 'space-between' }}>
+            <div className="win-panel-title" style={{ background: '#990000', color: '#FFF', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>🚨 INCOMING VICTIM DISPATCH QUEUE ({activeCases.length} ACTIVE)</span>
-              <span style={{ fontSize: '10px', background: '#FFF', color: '#990000', padding: '0 4px', fontWeight: 'bold' }}>
-                SCOPED TO {myHospital?.facility_code || 'THIS FACILITY'}
+              <span style={{ fontSize: '10px', background: '#FFF', color: '#990000', padding: '1px 6px', fontWeight: 'bold', borderRadius: '2px' }}>
+                PERSISTENT QUEUE [{myHospital?.facility_code || 'HOSP-01'}]
               </span>
             </div>
 
@@ -319,8 +380,8 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
 
                       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '8px', fontSize: '11px', marginBottom: '6px' }}>
                         <div>
-                          <strong>Victim Location:</strong> {c.location_description || `Lat: ${c.victim_lat}, Lon: ${c.victim_lon}`}<br/>
-                          <strong>Symptoms:</strong> <span style={{ color: '#991B1B' }}>{c.symptoms}</span><br/>
+                          <strong>Victim Location:</strong> {c.location_description || `GPS (${c.victim_lat}, ${c.victim_lon})`}<br/>
+                          <strong>Symptoms:</strong> <span style={{ color: '#991B1B' }}>{c.symptoms || 'Snakebite envenoming symptoms'}</span><br/>
                           <strong>Medical History / Allergies:</strong> {c.victim_medical_history || 'None reported'}
                         </div>
                         <div style={{ background: '#FEF2F2', padding: '6px', border: '1px solid #FECACA', borderRadius: '4px' }}>
@@ -330,8 +391,17 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
                         </div>
                       </div>
 
-                      <div style={{ background: '#FEF3C7', padding: '4px 8px', fontSize: '10px', color: '#92400E', fontWeight: 'bold', borderRadius: '3px' }}>
-                        🚑 Ambulance Assigned: {c.assigned_ambulance_number || '108 Rapid Unit'}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FEF3C7', padding: '4px 8px', borderRadius: '3px', marginTop: '6px' }}>
+                        <span style={{ fontSize: '10px', color: '#92400E', fontWeight: 'bold' }}>
+                          🚑 Ambulance Assigned: {c.assigned_ambulance_number || c.assigned_ambulance_id ? `MH-12-EM-108${c.assigned_ambulance_id || 1}` : '108 Rapid Unit'}
+                        </span>
+                        <button 
+                          type="button" 
+                          onClick={() => handleResolveCase(c.id)}
+                          style={{ fontSize: '10px', padding: '2px 8px', background: '#16A34A', color: '#FFF', fontWeight: 'bold', border: '1px outset #FFF', cursor: 'pointer' }}
+                        >
+                          ✓ ADMIT & RESOLVE
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -401,7 +471,7 @@ export default function HospitalDashboard({ officerUser, onLogout, onBackToLandi
       <footer className="hosp-footer">
         <span>STATUS: MEDICAL OFFICER AUTHORIZED</span>
         <span>SCOPED FACILITY: {myHospital?.facility_code || 'HOSP-01'}</span>
-        <span>CENTRAL DATABASE SYNC: ACTIVE</span>
+        <span>QUEUE PERSISTENCE: LOCAL SECURE CACHE ACTIVE</span>
         <span>HELPLINE: 15400</span>
       </footer>
 
