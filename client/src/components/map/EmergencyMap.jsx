@@ -12,6 +12,7 @@ export default function EmergencyMap({
 }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
+  const layerGroupRef = useRef(null);
   const [mapError, setMapError] = useState(false);
 
   useEffect(() => {
@@ -28,18 +29,39 @@ export default function EmergencyMap({
         });
       }
 
-      // Safely reset Leaflet DOM container ID to prevent "Map container is already initialized" error
-      if (mapInstanceRef.current) {
-        try {
-          mapInstanceRef.current.off();
-          mapInstanceRef.current.remove();
-        } catch (e) {}
-        mapInstanceRef.current = null;
+      // Initialize map instance only once
+      if (!mapInstanceRef.current) {
+        if (mapRef.current._leaflet_id) {
+          mapRef.current._leaflet_id = null;
+        }
+
+        const centerLat = parseFloat(victimLat) || 18.5204;
+        const centerLon = parseFloat(victimLon) || 73.8567;
+
+        const map = L.map(mapRef.current, {
+          zoomControl: true,
+          zoomAnimation: false, // Prevents _leaflet_pos animation race condition
+          fadeAnimation: false,
+          markerZoomAnimation: false
+        }).setView([centerLat, centerLon], 11);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap',
+          maxZoom: 18
+        }).addTo(map);
+
+        const layerGroup = L.layerGroup().addTo(map);
+        layerGroupRef.current = layerGroup;
+        mapInstanceRef.current = map;
       }
 
-      if (mapRef.current && mapRef.current._leaflet_id) {
-        mapRef.current._leaflet_id = null;
-      }
+      const map = mapInstanceRef.current;
+      const layerGroup = layerGroupRef.current;
+
+      if (!map || !layerGroup) return;
+
+      // Clear existing layers safely without destroying the map DOM container
+      layerGroup.clearLayers();
 
       const centerLat = parseFloat(victimLat) || 18.5204;
       const centerLon = parseFloat(victimLon) || 73.8567;
@@ -47,7 +69,7 @@ export default function EmergencyMap({
       // Custom Pin Icons
       const victimIcon = L.divIcon({
         className: 'custom-victim-pin',
-        html: `<div style="background-color: #EF4444; width: 24px; height: 24px; border-radius: 50%; border: 3px solid #FFFFFF; box-shadow: 0 0 10px rgba(239, 68, 68, 0.8); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px;">📍</div>`,
+        html: `<div style="background-color: #EF4444; width: 22px; height: 22px; border-radius: 50%; border: 3px solid #FFFFFF; box-shadow: 0 0 10px rgba(239, 68, 68, 0.8); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 11px;">📍</div>`,
         iconSize: [24, 24],
         iconAnchor: [12, 12]
       });
@@ -73,23 +95,12 @@ export default function EmergencyMap({
         iconAnchor: [13, 13]
       });
 
-      // Initialize Leaflet map
-      const map = L.map(mapRef.current, { zoomControl: true }).setView([centerLat, centerLon], 11);
-      mapInstanceRef.current = map;
-
-      // Add OpenStreetMap Tile Layer
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap',
-        maxZoom: 18
-      }).addTo(map);
-
       const bounds = L.latLngBounds();
 
       // 1. Plot Victim Marker
-      L.marker([centerLat, centerLon], { icon: victimIcon })
-        .addTo(map)
+      const vMarker = L.marker([centerLat, centerLon], { icon: victimIcon })
         .bindPopup(`<b>📍 Victim Location</b><br/>${victimLocation}`);
-      
+      layerGroup.addLayer(vMarker);
       bounds.extend([centerLat, centerLon]);
 
       // 2. Plot Hospitals
@@ -100,19 +111,19 @@ export default function EmergencyMap({
           const hLon = parseFloat(h.longitude);
           if (isNaN(hLat) || isNaN(hLon)) return;
 
-          L.marker([hLat, hLon], { icon: isMatched ? matchedHospitalIcon : hospitalIcon })
-            .addTo(map)
+          const hMarker = L.marker([hLat, hLon], { icon: isMatched ? matchedHospitalIcon : hospitalIcon })
             .bindPopup(`<b>${h.name}</b><br/>ASV Stock: ${h.current_asv_vials} vials`);
-
+          layerGroup.addLayer(hMarker);
           bounds.extend([hLat, hLon]);
 
           if (isMatched) {
-            L.polyline([[centerLat, centerLon], [hLat, hLon]], {
+            const poly = L.polyline([[centerLat, centerLon], [hLat, hLon]], {
               color: '#16A34A',
               weight: 4,
               opacity: 0.8,
               dashArray: '8, 8'
-            }).addTo(map);
+            });
+            layerGroup.addLayer(poly);
           }
         });
       }
@@ -122,28 +133,31 @@ export default function EmergencyMap({
         const aLat = parseFloat(matchedAmbulance.current_lat);
         const aLon = parseFloat(matchedAmbulance.current_lon);
         if (!isNaN(aLat) && !isNaN(aLon)) {
-          L.marker([aLat, aLon], { icon: ambulanceIcon })
-            .addTo(map)
+          const aMarker = L.marker([aLat, aLon], { icon: ambulanceIcon })
             .bindPopup(`<b>🚑 Ambulance ${matchedAmbulance.vehicle_number}</b>`);
+          layerGroup.addLayer(aMarker);
           bounds.extend([aLat, aLon]);
 
-          L.polyline([[aLat, aLon], [centerLat, centerLon]], {
+          const aPoly = L.polyline([[aLat, aLon], [centerLat, centerLon]], {
             color: '#F59E0B',
             weight: 3,
             opacity: 0.7,
             dashArray: '5, 5'
-          }).addTo(map);
+          });
+          layerGroup.addLayer(aPoly);
         }
       }
 
       if (bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [30, 30] });
+        map.fitBounds(bounds, { padding: [30, 30], animate: false });
       }
     } catch (err) {
-      console.warn('[Map Exception Caught Gracefully]:', err);
+      console.warn('[Emergency Map Warning Handled]:', err);
       setMapError(true);
     }
+  }, [victimLat, victimLon, victimLocation, hospitals, matchedHospital, matchedAmbulance]);
 
+  useEffect(() => {
     return () => {
       if (mapInstanceRef.current) {
         try {
@@ -151,9 +165,10 @@ export default function EmergencyMap({
           mapInstanceRef.current.remove();
         } catch (e) {}
         mapInstanceRef.current = null;
+        layerGroupRef.current = null;
       }
     };
-  }, [victimLat, victimLon, victimLocation, hospitals, matchedHospital, matchedAmbulance]);
+  }, []);
 
   if (mapError) {
     return (

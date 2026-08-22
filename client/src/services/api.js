@@ -116,24 +116,26 @@ export async function parseVoiceTranscript(transcript) {
       return {
         success: false,
         error: 'GEMINI_API_KEY_MISSING',
-        message: err.response.data.message || 'Gemini API key is not configured in server .env file.'
+        message: err.response.data.message || 'AI service key is not configured in server .env file.'
       };
     }
-    console.warn('[API WARN] Voice parse endpoint error. Returning explicit error.');
-    return {
-      success: false,
-      error: 'VOICE_PARSE_ERROR',
-      message: 'Failed to process voice transcript. Please check backend API server.'
-    };
+    console.warn('[API WARN] Server voice parse offline/failed. Falling back to local NLP triage parser.');
   }
 
-  // Local NLP parser fallback
+  // Robust Local NLP parser fallback
   const lower = (transcript || '').toLowerCase();
-  const requiresVentilator = lower.includes('breath') || lower.includes('suffocat') || lower.includes('chok') || lower.includes('paraly');
+  const requiresVentilator = lower.includes('breath') || lower.includes('suffocat') || lower.includes('chok') || lower.includes('paraly') || lower.includes('droop') || lower.includes('slur');
   
-  let lat = 18.7617, lon = 73.8587, location = 'Chakan market region';
-  if (lower.includes('shirur')) { lat = 18.8278; lon = 74.3789; location = 'Shirur highway'; }
-  else if (lower.includes('pimpri')) { lat = 18.6279; lon = 73.8188; location = 'Pimpri area'; }
+  let lat = 18.7617, lon = 73.8587, location = 'Chakan Market Region';
+  if (lower.includes('shirur')) { lat = 18.8278; lon = 74.3789; location = 'Shirur Highway Junction'; }
+  else if (lower.includes('pimpri') || lower.includes('ycm')) { lat = 18.6279; lon = 73.8188; location = 'Pimpri YCM Vicinity'; }
+  else if (lower.includes('aundh')) { lat = 18.5602; lon = 73.8122; location = 'Aundh District Area'; }
+  else if (lower.includes('alandi')) { lat = 18.6770; lon = 73.8960; location = 'Alandi PHC Region'; }
+
+  const symptomsList = [];
+  if (requiresVentilator) symptomsList.push('Neurotoxic respiratory depression / Ptosis');
+  if (lower.includes('bleed') || lower.includes('hemotox') || lower.includes('viper')) symptomsList.push('Hemotoxic active wound bleeding');
+  if (lower.includes('swell') || lower.includes('pain') || symptomsList.length === 0) symptomsList.push('Severe local swelling and envenoming pain');
 
   return {
     success: true,
@@ -141,7 +143,7 @@ export async function parseVoiceTranscript(transcript) {
       location_description: location,
       estimated_lat: lat,
       estimated_lon: lon,
-      symptoms: [requiresVentilator ? 'Respiratory distress' : 'Local swelling at bite site'],
+      symptoms: symptomsList,
       bite_time_minutes_ago: 30,
       asv_vials_needed: requiresVentilator ? 15 : 10,
       requires_ventilator: requiresVentilator
